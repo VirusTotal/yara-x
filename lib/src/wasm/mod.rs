@@ -162,6 +162,8 @@ pub enum WasmExportKind {
 pub struct WasmExport {
     /// Function's name.
     pub name: &'static str,
+    /// Optional alternate name (alias) for the function.
+    pub alias: Option<&'static str>,
     /// Function's mangled name. The mangled name contains information about
     /// the function's arguments and return type. For additional details see
     /// [`crate::types::MangledFnName`].
@@ -181,6 +183,13 @@ pub struct WasmExport {
 }
 
 impl WasmExport {
+    /// Returns an iterator over the names under which this function is
+    /// exposed, starting with [`Self::name`] followed by [`Self::alias`] if
+    /// present.
+    pub fn names(&self) -> impl Iterator<Item = &'static str> {
+        std::iter::once(self.name).chain(self.alias)
+    }
+
     /// Returns the fully qualified name for a #[wasm_export] function.
     ///
     /// The fully qualified name includes not only the function's name, but
@@ -218,9 +227,9 @@ impl WasmExport {
     /// Returns a hash map with all function exported to WASM that match the
     /// given predicate.
     ///
-    /// Keys are function names and values are [`Func`] structures. Overloaded
-    /// functions appear in the map as a single entry where the [`Func`] has
-    /// multiple signatures.
+    /// Keys are function names (including any aliases) and values are [`Func`]
+    /// structures. Overloaded functions appear in the map as a single entry
+    /// where the [`Func`] has multiple signatures.
     pub(crate) fn get_functions<P>(
         predicate: P,
     ) -> FxHashMap<&'static str, Func>
@@ -231,30 +240,33 @@ impl WasmExport {
             FxHashMap::default();
 
         // Iterate over the WASM exports looking for those that match the
-        // predicate. Add them to `functions` map, or update the `Func`
-        // object with an additional signature if the function is
-        // overloaded.
+        // predicate. Add them to `functions` map under their primary name and
+        // any aliases, or update the `Func` object with an additional
+        // signature if the function is overloaded.
         for export in wasm_exports().filter(predicate) {
             let mangled_name = export.fully_qualified_mangled_name();
             let description = export.description.clone();
-            // If the function was already present in the map is because it has
-            // multiple signatures. If that's the case, add more signatures to
-            // the existing `Func` object.
-            if let Some(function) = functions.get_mut(export.name) {
-                let mut signature = FuncSignature::from(mangled_name);
-                signature.doc = description;
-                function.add_signature(signature);
-            } else {
-                let mut func = Func::from(mangled_name);
-                // Update the description for the first and only signature in
-                // the function.
-                let signature = func.signatures_mut().get_mut(0).unwrap();
-                // It's safe to get a mutable reference to the signature with
-                // Rc::get_mut because the Rc was just crated and there's a
-                // single reference to it.
-                let signature = Rc::get_mut(signature).unwrap();
-                signature.doc = description;
-                functions.insert(export.name, func);
+            for name in export.names() {
+                // If the function was already present in the map is because it
+                // has multiple signatures. If that's the case, add more
+                // signatures to the existing `Func` object.
+                if let Some(function) = functions.get_mut(name) {
+                    let mut signature =
+                        FuncSignature::from(mangled_name.clone());
+                    signature.doc = description.clone();
+                    function.add_signature(signature);
+                } else {
+                    let mut func = Func::from(mangled_name.clone());
+                    // Update the description for the first and only signature
+                    // in the function.
+                    let signature = func.signatures_mut().get_mut(0).unwrap();
+                    // It's safe to get a mutable reference to the signature
+                    // with Rc::get_mut because the Rc was just created and
+                    // there's a single reference to it.
+                    let signature = Rc::get_mut(signature).unwrap();
+                    signature.doc = description.clone();
+                    functions.insert(name, func);
+                }
             }
         }
 
@@ -1838,5 +1850,41 @@ mod tests {
             WasmExportKind::Method("RuntimeString")
         );
         assert!(!super::export__string_len.builtin());
+    }
+
+    /// Test method with an alias.
+    #[module_export(
+        name = "contains_item",
+        alias = "has_item",
+        method_of = "test_alias.DummyStruct"
+    )]
+    fn dummy_contains_item(_ctx: &ScanContext, _x: i64) -> bool {
+        true
+    }
+
+    #[test]
+    fn method_alias_in_get_methods() {
+        assert_eq!(
+            export____thunk__dummy_contains_item.alias,
+            Some("has_item")
+        );
+        let names: Vec<_> =
+            export____thunk__dummy_contains_item.names().collect();
+        assert_eq!(names, vec!["contains_item", "has_item"]);
+
+        let methods = WasmExport::get_methods("test_alias.DummyStruct");
+        let primary = methods.get("contains_item").unwrap();
+        let alias = methods.get("has_item").unwrap();
+
+        assert_eq!(primary, alias);
+        assert!(alias.is_method());
+        assert_eq!(
+            alias.signatures()[0].mangled_name.as_str(),
+            "test_alias.DummyStruct::contains_item@_x:i64@b"
+        );
+        assert_eq!(
+            alias.signatures()[0].doc.as_deref(),
+            Some(" Test method with an alias.")
+        );
     }
 }

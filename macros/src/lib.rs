@@ -260,6 +260,15 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
 ///   a + b
 /// }
 /// ```
+///
+/// Exporting a function with an alternate name using `alias`:
+///
+/// ```text
+/// #[module_export(name = "contains_method", alias = "has_method")]
+/// fn contains_method(ctx: &ScanContext, value: RuntimeString) -> Option<bool> {
+///     ...
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn module_export(args: TokenStream, input: TokenStream) -> TokenStream {
     let args = match NestedMeta::parse_meta_list(args.into()) {

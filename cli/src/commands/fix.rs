@@ -14,7 +14,7 @@ use crate::commands::{
     compilation_args, compile_rules, path_with_namespace_parser,
 };
 use crate::config::Config;
-use crate::walk::Draw;
+use crate::console::Draw;
 use crate::walk::Message;
 use crate::{help, walk};
 

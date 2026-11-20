@@ -71,24 +71,37 @@ rule invalid_signature {
 }
 ```
 
-### contains_string()
+### has_string()
 
 String search using binary search. Useful for very large number of strings.
+Also available under the alias `contains_string()`.
 
 #### Example
 
 ```yara
-import "dex
+import "dex"
 
 rule search_string {
     condition:
-        dex.contains_string("Landroid/content/ComponentName;")
+        dex.has_string("Landroid/content/ComponentName;")
 }
 ```
 
-### contains_method()
+### has_method()
 
-Search for the method name using binary search. It is useful for a very large number of methods.
+Returns true if the DEX file contains a method matching the given criteria.
+Also available under the alias `contains_method()`. The function is overloaded
+and accepts:
+
+- `has_method(method_name)` — a method whose name equals `method_name`.
+- `has_method(/method_name/)` — a method whose name matches the regular
+  expression.
+- `has_method(class_name, method_name)` — a method named `method_name`
+  belonging to the class `class_name`.
+- `has_method(/class_name/, /method_name/)` — the regular-expression form of
+  the above.
+
+All comparisons are case-sensitive.
 
 #### Example
 
@@ -97,22 +110,33 @@ import "dex"
 
 rule search_method {
     condition:
-        dex.contains_method("<init>")
+        dex.has_method("<init>") and
+        dex.has_method(/^get/) and
+        dex.has_method("Landroid/app/Application;", "onCreate")
 }
 ```
 
-### contains_class()
+### has_class()
 
-Search for the class name using binary search. It is useful for a very large number of classes.
+Returns true if the DEX file defines a class matching the given criteria. Also
+available under the alias `contains_class()`. The function is overloaded and
+accepts:
+
+- `has_class(class_name)` — a defined class whose name equals `class_name`.
+- `has_class(/class_name/)` — a defined class whose name matches the regular
+  expression.
+
+The comparison is case-sensitive.
 
 #### Example
 
 ```yara
 import "dex"
 
-rule search_method {
+rule search_class {
     condition:
-        dex.contains_class("Landroid/content/Context;")
+        dex.has_class("Landroid/content/Context;") and
+        dex.has_class(/^Landroid\//)
 }
 ```
 

@@ -2386,7 +2386,7 @@ fn test_rules_matches_many() {
         )
         .unwrap();
     let rules = compiler.build();
-    assert_eq!(rules.regex_sets.len(), 1);
+    assert_eq!(rules.regexp_sets.len(), 1);
     let mut scanner = Scanner::new(&rules);
     scanner.set_global("str_foo", "baz").unwrap();
     assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);
@@ -2421,7 +2421,7 @@ fn test_rules_matches_many() {
         )
         .unwrap();
     let rules = compiler.build();
-    assert!(rules.regex_sets.is_empty());
+    assert!(rules.regexp_sets.is_empty());
     let mut scanner = Scanner::new(&rules);
     scanner.set_global("str_foo", "bat").unwrap();
     assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);

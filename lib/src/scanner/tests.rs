@@ -1053,6 +1053,33 @@ fn max_scan_size() {
             .len(),
         0
     );
+
+    // Exercise the >32MB mmap path in `Scanner::load_file` using a sparse
+    // 40MB file with "aaaa" placed at offset 35MB.
+    struct TempFile(std::path::PathBuf);
+    impl Drop for TempFile {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    let temp = TempFile(
+        std::env::temp_dir()
+            .join(format!("yara_x_max_scan_size_{}.bin", std::process::id())),
+    );
+    {
+        use std::io::{Seek, SeekFrom, Write};
+        let mut f = std::fs::File::create(&temp.0).unwrap();
+        f.set_len(40_000_000).unwrap();
+        f.seek(SeekFrom::Start(35_000_000)).unwrap();
+        f.write_all(b"aaaa").unwrap();
+    }
+
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan_file(&temp.0).unwrap().matching_rules().len(), 1);
+
+    scanner.max_scan_size(33_000_000);
+    assert_eq!(scanner.scan_file(&temp.0).unwrap().matching_rules().len(), 0);
 }
 
 #[cfg(feature = "test_proto2-module")]

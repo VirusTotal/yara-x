@@ -10,7 +10,6 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use std::collections::hash_map::Entry;
 use std::fmt::{Display, Formatter};
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::iter::zip;
 use std::mem::{size_of, size_of_val};
 use std::slice::IterMut;
@@ -1034,15 +1033,7 @@ impl Compiler {
                     + size_of::<SplitId>()
                     + size_of::<instr::Offset>();
 
-                let best_atoms = self.best_atoms_stack.last_mut().unwrap();
-
-                for atom in best_atoms.iter_mut() {
-                    if atom.code_loc.bck_seq_id == start.bck_seq_id
-                        && atom.code_loc.bck >= start.bck
-                    {
-                        atom.code_loc.bck += adjustment;
-                    }
-                }
+                self.adjust_atoms_bck_loc(start, adjustment);
 
                 Ok(start)
             }
@@ -1170,16 +1161,7 @@ impl Compiler {
                 if min > 1 {
                     let adjustment =
                         (min - 1) as usize * (end.bck - start.bck);
-
-                    let best_atoms = self.best_atoms_stack.last_mut().unwrap();
-
-                    for atom in best_atoms.iter_mut() {
-                        if atom.code_loc.bck_seq_id == start.bck_seq_id
-                            && atom.code_loc.bck >= start.bck
-                        {
-                            atom.code_loc.bck += adjustment;
-                        }
-                    }
+                    self.adjust_atoms_bck_loc(start, adjustment);
                 }
 
                 let end = self.location();
@@ -1190,6 +1172,17 @@ impl Compiler {
                 }
 
                 Ok(start)
+            }
+        }
+    }
+
+    fn adjust_atoms_bck_loc(&mut self, start: CodeLoc, adjustment: usize) {
+        let best_atoms = self.best_atoms_stack.last_mut().unwrap();
+        for atom in best_atoms.iter_mut() {
+            if atom.code_loc.bck_seq_id == start.bck_seq_id
+                && atom.code_loc.bck >= start.bck
+            {
+                atom.code_loc.bck += adjustment;
             }
         }
     }
@@ -1523,7 +1516,7 @@ pub(crate) struct InstrSeq {
     /// The unique ID that identifies this sequence of instructions.
     seq_id: u64,
     /// A vector that contains the PikeVM code.
-    seq: Cursor<Vec<u8>>,
+    seq: Vec<u8>,
     /// The ID that will identify the next split instruction emitted in this
     /// sequence.
     split_id: SplitId,
@@ -1531,7 +1524,7 @@ pub(crate) struct InstrSeq {
 
 impl AsRef<[u8]> for InstrSeq {
     fn as_ref(&self) -> &[u8] {
-        self.seq.get_ref().as_slice()
+        self.seq.as_slice()
     }
 }
 
@@ -1541,46 +1534,40 @@ impl InstrSeq {
 
     /// Creates a new [`InstrSeq`].
     pub fn new() -> Self {
-        Self {
-            seq_id: 0,
-            seq: Cursor::new(Vec::new()),
-            split_id: SplitId::default(),
-        }
+        Self { seq_id: 0, seq: Vec::new(), split_id: SplitId::default() }
     }
 
     /// Creates a new [`InstrSeq`] with an ID that is `self.seq_id() + 1`.
     pub fn next(&self) -> Self {
         Self {
             seq_id: self.seq_id + 1,
-            seq: Cursor::new(Vec::new()),
+            seq: Vec::new(),
             split_id: self.split_id,
         }
     }
 
     /// Returns the code in the [`InstrSeq`] as a slice of raw bytes.
     pub fn as_slice(&self) -> &[u8] {
-        self.seq.get_ref().as_slice()
+        self.seq.as_slice()
     }
 
     /// Consumes the [`InstrSeq`] and returns the inner vector that contains
     /// the code.
     pub fn into_inner(self) -> Vec<u8> {
-        self.seq.into_inner()
+        self.seq
     }
 
     /// Appends another sequence to this one.
     pub fn append(&mut self, other: &Self) -> Result<(), Error> {
-        self.write(other.seq.get_ref().as_slice())
+        self.write(other.seq.as_slice())
     }
 
     #[inline]
     fn write(&mut self, bytes: &[u8]) -> Result<(), Error> {
-        if self.seq.get_ref().len().saturating_add(bytes.len())
-            > Self::MAX_CODE_SIZE
-        {
+        if self.seq.len().saturating_add(bytes.len()) > Self::MAX_CODE_SIZE {
             return Err(Error::TooLarge);
         }
-        self.seq.write_all(bytes).unwrap();
+        self.seq.extend_from_slice(bytes);
         Ok(())
     }
 
@@ -1591,7 +1578,7 @@ impl InstrSeq {
     /// the location where the next instruction will be put.
     #[inline]
     pub fn location(&self) -> usize {
-        self.seq.position() as usize
+        self.seq.len()
     }
 
     /// Returns the unique ID associated to the instruction sequence.
@@ -1773,21 +1760,17 @@ impl InstrSeq {
         let location = self.location();
         let clone_len = end - start;
 
-        if self.seq.get_ref().len().saturating_add(clone_len)
-            > Self::MAX_CODE_SIZE
-        {
+        if self.seq.len().saturating_add(clone_len) > Self::MAX_CODE_SIZE {
             return Err(Error::TooLarge);
         }
 
         // Extend the code by cloning the ranges that go from `start` to `end`.
-        self.seq.get_mut().extend_from_within(start..end);
+        self.seq.extend_from_within(start..end);
 
         // Every split instruction has an ID, we don't want the split
         // instructions in the cloned code to have the same IDs as in the
         // original code, those IDs need to be updated.
         self.update_split_ids(location)?;
-
-        self.seq.seek(SeekFrom::Current(end as i64 - start as i64)).unwrap();
 
         Ok(location)
     }
@@ -1800,8 +1783,7 @@ impl InstrSeq {
     /// code doesn't have split instruction with the same IDs as in the original
     /// code.
     fn update_split_ids(&mut self, location: usize) -> Result<(), Error> {
-        let code =
-            self.seq.get_mut().as_mut_slice().get_mut(location..).unwrap();
+        let code = self.seq.get_mut(location..).unwrap();
 
         let mut offsets = Vec::new();
 
@@ -1844,39 +1826,20 @@ impl InstrSeq {
     /// its arguments, like [`Instr::Jump`], [`Instr::SplitA`], [`Instr::SplitB`],
     /// etc.
     pub fn patch_instr(&mut self, location: usize, offset: instr::Offset) {
-        // Save the current position for the forward code in order to restore
-        // it later.
-        let saved_loc = self.location();
+        assert_eq!(self.seq[location], OPCODE_PREFIX);
 
-        // Seek to the position indicated by `location`.
-        self.seq.seek(SeekFrom::Start(location as u64)).unwrap();
-
-        let mut buf = [0; 2];
-        self.seq.read_exact(&mut buf).unwrap();
-
-        // Make sure that we have some `split` or `jump` instruction at the
-        // given location.
-        assert_eq!(buf[0], OPCODE_PREFIX);
-
-        match buf[1] {
-            Instr::JUMP | Instr::REPEAT_GREEDY | Instr::REPEAT_NON_GREEDY => {}
+        let offset_pos = match self.seq[location + 1] {
+            Instr::JUMP | Instr::REPEAT_GREEDY | Instr::REPEAT_NON_GREEDY => {
+                location + 2
+            }
             Instr::SPLIT_A | Instr::SPLIT_B => {
-                self.seq
-                    // Skip the split ID.
-                    .seek(SeekFrom::Current(size_of::<SplitId>() as i64))
-                    .unwrap();
+                location + 2 + size_of::<SplitId>()
             }
-            _ => {
-                unreachable!()
-            }
-        }
+            _ => unreachable!(),
+        };
 
-        // Write the given offset after the instruction opcode. This will
-        // overwrite any existing offsets, usually initialized with 0.
-        self.seq.write_all(offset.to_le_bytes().as_slice()).unwrap();
-
-        // Restore to the previous current position.
-        self.seq.seek(SeekFrom::Start(saved_loc as u64)).unwrap();
+        self.seq[offset_pos..offset_pos + size_of::<instr::Offset>()]
+            .copy_from_slice(&offset.to_le_bytes());
     }
 
     /// Patches the offsets of the [`Instr::SplitN`] instruction at the given
@@ -1889,45 +1852,26 @@ impl InstrSeq {
     pub fn patch_split_n<I: ExactSizeIterator<Item = instr::Offset>>(
         &mut self,
         location: usize,
-        mut offsets: I,
+        offsets: I,
     ) {
-        // Save the current location for the forward code in order to restore
-        // it later.
-        let saved_loc = self.location();
+        assert_eq!(self.seq[location], OPCODE_PREFIX);
+        assert_eq!(self.seq[location + 1], Instr::SPLIT_N);
 
-        // Seek to the position indicated by `location`.
-        self.seq.seek(SeekFrom::Start(location as u64)).unwrap();
+        let num_alt_pos = location + 2 + size_of::<SplitId>();
+        let n = NumAlt::from_le_bytes(
+            self.seq[num_alt_pos..num_alt_pos + size_of::<NumAlt>()]
+                .try_into()
+                .unwrap(),
+        ) as usize;
 
-        // Read the first few bytes in the opcode, corresponding to the prefix,
-        // the opcode itself, and the split id respectively.
-        let mut opcode = [0; 2 + size_of::<SplitId>()];
-        self.seq.read_exact(&mut opcode).unwrap();
+        assert_eq!(n, offsets.len());
 
-        // Make sure that we have some `split` or `jump` instruction at the
-        // given location.
-        assert_eq!(opcode[0], OPCODE_PREFIX);
-        assert_eq!(opcode[1], Instr::SPLIT_N);
-
-        let read_num_alternatives = |c: &mut Cursor<Vec<u8>>| -> NumAlt {
-            let mut buf = [0_u8; size_of::<NumAlt>()];
-            c.read_exact(&mut buf).unwrap();
-            NumAlt::from_le_bytes(buf)
-        };
-
-        let n = read_num_alternatives(&mut self.seq);
-
-        // Make sure that the number of offsets passed to this function is
-        // equal the number of alternatives.
-        assert_eq!(n as usize, offsets.len());
-
-        for _ in 0..n {
-            self.seq
-                .write_all(offsets.next().unwrap().to_le_bytes().as_slice())
-                .unwrap();
+        let mut pos = num_alt_pos + size_of::<NumAlt>();
+        for offset in offsets {
+            self.seq[pos..pos + size_of::<instr::Offset>()]
+                .copy_from_slice(&offset.to_le_bytes());
+            pos += size_of::<instr::Offset>();
         }
-
-        // Restore to the previous current position.
-        self.seq.seek(SeekFrom::Start(saved_loc as u64)).unwrap();
     }
 }
 
@@ -1935,7 +1879,7 @@ impl Display for InstrSeq {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f)?;
 
-        for (instr, addr) in InstrParser::new(self.seq.get_ref().as_slice()) {
+        for (instr, addr) in InstrParser::new(self.seq.as_slice()) {
             match instr {
                 Instr::AnyByte => {
                     writeln!(f, "{addr:05x}: ANY_BYTE")?;

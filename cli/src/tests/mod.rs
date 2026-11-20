@@ -7,4 +7,5 @@ mod dump;
 mod extract;
 mod fix;
 mod fmt;
+mod man;
 mod scan;

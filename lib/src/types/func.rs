@@ -350,7 +350,24 @@ impl Func {
                     signature.mangled_name.as_str()
                 )
             }
-            Err(pos) => self.signatures.insert(pos, signature),
+            Err(pos) => {
+                if let Some(existing) =
+                    self.signatures.iter().find(|existing| {
+                        existing
+                            .args
+                            .iter()
+                            .map(|(_, tv)| tv.ty())
+                            .eq(signature.args.iter().map(|(_, tv)| tv.ty()))
+                    })
+                {
+                    panic!(
+                        "conflicting signatures `{}` and `{}`",
+                        existing.mangled_name.as_str(),
+                        signature.mangled_name.as_str()
+                    );
+                }
+                self.signatures.insert(pos, signature);
+            }
         }
     }
 
@@ -581,5 +598,23 @@ mod test {
     #[should_panic]
     fn missing_argument_name() {
         MangledFnName::from("foo@i64@i64").unmangle();
+    }
+
+    #[test]
+    fn add_signature_overloads_with_different_arg_types() {
+        use crate::types::{Func, FuncSignature};
+
+        let mut func = Func::from("mod.foo@a:i64@i64");
+        func.add_signature(FuncSignature::from("mod.bar@a:s@i64"));
+        assert_eq!(func.signatures().len(), 2);
+    }
+
+    #[test]
+    #[should_panic(expected = "conflicting signatures")]
+    fn add_signature_conflicting_arg_types() {
+        use crate::types::{Func, FuncSignature};
+
+        let mut func = Func::from("mod.foo@a:i64@i64");
+        func.add_signature(FuncSignature::from("mod.bar@b:i64@i64"));
     }
 }

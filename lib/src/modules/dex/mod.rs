@@ -6,6 +6,7 @@ use sha1::{Digest, Sha1};
 use simd_adler32::Adler32;
 use std::cell::RefCell;
 
+use crate::compiler::RegExpId;
 use crate::mods::prelude::*;
 use crate::modules::protos::dex::*;
 
@@ -109,51 +110,119 @@ fn signature(ctx: &mut ScanContext) -> Option<Lowercase<FixedLenString<40>>> {
     Some(Lowercase::<FixedLenString<40>>::new(digest))
 }
 
-/// Function that checks whether the DEX file contains the specified string
-#[module_export(name = "contains_string")]
-fn contains_string(
-    ctx: &mut ScanContext,
-    value: RuntimeString,
-) -> Option<bool> {
+/// Returns true if the DEX file contains the specified string.
+///
+/// Also available under the alias `contains_string`.
+#[module_export(name = "has_string", alias = "contains_string")]
+fn has_string(ctx: &ScanContext, value: RuntimeString) -> Option<bool> {
     let dex = ctx.module_output::<Dex>()?;
 
-    let str = value.to_str(ctx).ok()?.to_string();
+    let str = value.to_str(ctx).ok()?;
 
     // string items sorted by dex format
-    Some(dex.strings.binary_search(&str).is_ok())
+    Some(dex.strings.binary_search_by_key(&str, String::as_str).is_ok())
 }
 
-/// Function that checks whether the DEX file contains the specified method
-#[module_export(name = "contains_method")]
-fn contains_method(
-    ctx: &mut ScanContext,
-    value: RuntimeString,
+/// Returns true if the DEX file contains a method whose name equals
+/// `method_name` (case-sensitive).
+///
+/// Also available under the alias `contains_method`.
+#[module_export(name = "has_method", alias = "contains_method")]
+fn has_method(ctx: &ScanContext, method_name: RuntimeString) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+    let method_name = Some(method_name.to_str(ctx).ok()?);
+
+    Some(dex.methods.iter().any(|item| item.name.as_deref() == method_name))
+}
+
+/// Returns true if the DEX file contains a method whose name matches the
+/// regular expression `method_name`.
+///
+/// Also available under the alias `contains_method`.
+#[module_export(name = "has_method", alias = "contains_method")]
+fn has_method_regexp(
+    ctx: &ScanContext,
+    method_name: RegExpId,
 ) -> Option<bool> {
     let dex = ctx.module_output::<Dex>()?;
 
-    let str = match value.to_str(ctx) {
-        Ok(v) => Some(v.to_string()),
-        Err(_) => return None,
-    };
-
-    Some(dex.methods.iter().any(|item| item.name.as_deref() == str.as_deref()))
+    Some(dex.methods.iter().any(|item| {
+        item.name
+            .as_ref()
+            .is_some_and(|n| ctx.regexp_matches(method_name, n.as_bytes()))
+    }))
 }
 
-/// Function that checks whether the DEX file contains the specified class
-#[module_export(name = "contains_class")]
-fn contains_class(
-    ctx: &mut ScanContext,
-    value: RuntimeString,
+/// Returns true if the DEX file contains a method named `method_name` inside
+/// a class named `class_name` (both case-sensitive).
+///
+/// Also available under the alias `contains_method`.
+#[module_export(name = "has_method", alias = "contains_method")]
+fn has_method_class(
+    ctx: &ScanContext,
+    class_name: RuntimeString,
+    method_name: RuntimeString,
+) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+    let class_name = Some(class_name.to_str(ctx).ok()?);
+    let method_name = Some(method_name.to_str(ctx).ok()?);
+
+    Some(dex.methods.iter().any(|item| {
+        item.class.as_deref() == class_name
+            && item.name.as_deref() == method_name
+    }))
+}
+
+/// Returns true if the DEX file contains a method whose name matches
+/// `method_name` inside a class whose name matches `class_name`.
+///
+/// Also available under the alias `contains_method`.
+#[module_export(name = "has_method", alias = "contains_method")]
+fn has_method_class_regexp(
+    ctx: &ScanContext,
+    class_name: RegExpId,
+    method_name: RegExpId,
 ) -> Option<bool> {
     let dex = ctx.module_output::<Dex>()?;
 
-    let class_name = Some(value.to_str(ctx).ok()?.to_string());
+    Some(dex.methods.iter().any(|item| {
+        item.class
+            .as_ref()
+            .is_some_and(|c| ctx.regexp_matches(class_name, c.as_bytes()))
+            && item
+                .name
+                .as_ref()
+                .is_some_and(|n| ctx.regexp_matches(method_name, n.as_bytes()))
+    }))
+}
 
-    Some(
-        dex.class_defs
-            .binary_search_by(|item| item.class.cmp(&class_name))
-            .is_ok(),
-    )
+/// Returns true if the DEX file defines a class whose name equals `class_name`
+/// (case-sensitive).
+///
+/// Also available under the alias `contains_class`.
+#[module_export(name = "has_class", alias = "contains_class")]
+fn has_class(ctx: &ScanContext, class_name: RuntimeString) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+    let class_name = Some(class_name.to_str(ctx).ok()?);
+
+    // `class_defs` is ordered topologically by inheritance in the DEX format
+    // (superclasses and interfaces before subclasses), not alphabetically.
+    Some(dex.class_defs.iter().any(|item| item.class.as_deref() == class_name))
+}
+
+/// Returns true if the DEX file defines a class whose name matches the regular
+/// expression `class_name`.
+///
+/// Also available under the alias `contains_class`.
+#[module_export(name = "has_class", alias = "contains_class")]
+fn has_class_regexp(ctx: &ScanContext, class_name: RegExpId) -> Option<bool> {
+    let dex = ctx.module_output::<Dex>()?;
+
+    Some(dex.class_defs.iter().any(|item| {
+        item.class
+            .as_ref()
+            .is_some_and(|c| ctx.regexp_matches(class_name, c.as_bytes()))
+    }))
 }
 
 register_module!("dex", Dex, main);

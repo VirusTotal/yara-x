@@ -299,7 +299,7 @@ impl<'r> Scanner<'r> {
     where
         F: FnMut(ScanEvent<'_, 'r>) -> ControlFlow<B>,
     {
-        self.inner.scan_context_mut().reset(false);
+        self.inner.ctx.get_mut().reset(false);
 
         if let ControlFlow::Break(b) =
             callback(ScanEvent::Started { inner_path: None, data })
@@ -325,7 +325,7 @@ impl<'r> Scanner<'r> {
 
         let _ = self.extractor.extract_dfs(data, |event| match event {
             ExtractEvent::Extracted(_module, path, extracted_data) => {
-                if self.inner.scan_context().timeout_expired() {
+                if self.inner.ctx.get().timeout_expired() {
                     result = Err(ScanError::Timeout);
                     return ControlFlow::Break(());
                 }

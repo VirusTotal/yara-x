@@ -1,0 +1,72 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH YR-FIX-WARNINGS 1 "" YARA-X "User Commands"
+.SH NAME
+yr\-fix\-warnings \- Automatically fix warnings
+.SH SYNOPSIS
+\fByr fix warnings\fR [\fB\-d\fR|\fB\-\-define\fR] [\fB\-w\fR|\fB\-\-disable\-warnings\fR] [\fB\-\-ignore\-invalid\-rules\fR] [\fB\-I\fR|\fB\-\-ignore\-module\fR] [\fB\-\-include\-dir\fR] [\fB\-\-path\-as\-namespace\fR] [\fB\-\-relaxed\-re\-syntax\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fI[NAMESPACE:]RULES_PATH\fR>
+.SH DESCRIPTION
+Automatically fix warnings
+.PP
+This command automatically resolves fixable YARA\-X warnings. It accepts the same
+options as the compile command; however, instead of outputting a compiled rules file,
+it directly modifies the source files to fix the warnings.
+.SH OPTIONS
+.TP
+\fB\-d\fR, \fB\-\-define\fR \fI<VAR=VALUE>\fR
+Define external variable
+
+Examples:
+
+.nf
+\-\-define some_int=1
+\-\-define some_float=3.14
+\-\-define some_bool=true
+\-\-define some_str=\\"foobar\\"
+.fi
+.TP
+\fB\-w\fR, \fB\-\-disable\-warnings\fR[=\fI<WARNING_ID>...\fR]
+Disable warnings
+
+When used alone all warnings are disabled. It can receive a comma\-separated
+list of with the names of the warnings to disable.
+
+Examples:
+
+.nf
+\-\-disable\-warnings
+\-\-disable\-warnings=slow_pattern
+\-\-disable\-warnings=slow_rules,redundant_modifier
+\-\-disable\-warnings=slow_rules \-\-disable\-warnings=redundant_modifier
+.fi
+.TP
+\fB\-\-ignore\-invalid\-rules\fR
+Ignore rules that fail to compile and continue with the valid ones
+.TP
+\fB\-I\fR, \fB\-\-ignore\-module\fR \fI<MODULE>\fR
+Ignore rules that use the specified module
+
+Rules that use the specified module will be ignored, as well as any rules that
+depends directly or indirectly on such rules.
+
+This option can be used more than once for ignored different modules.
+.TP
+\fB\-\-include\-dir\fR \fI<PATH>\fR
+Directory in which to search for included files
+
+If not given, the current working directory is used. May be specified multiple
+times; directories will be searched in order.
+.TP
+\fB\-\-path\-as\-namespace\fR
+Use file path as rule namespace
+.TP
+\fB\-\-relaxed\-re\-syntax\fR
+Use a more relaxed syntax check while parsing regular expressions
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fI[NAMESPACE:]RULES_PATH\fR>
+Path to a YARA source file or directory (optionally prefixed with a namespace)
+.SH "SEE ALSO"
+\fByr\-fix\fR(1), \fByr\fR(1)

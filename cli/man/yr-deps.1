@@ -1,0 +1,21 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH YR-DEPS 1 "" YARA-X "User Commands"
+.SH NAME
+yr\-deps \- Show rule dependencies
+.SH SYNOPSIS
+\fByr deps\fR [\fB\-r\fR|\fB\-\-rule\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIRULES_PATH\fR>
+.SH DESCRIPTION
+Show rule dependencies
+.SH OPTIONS
+.TP
+\fB\-r\fR, \fB\-\-rule\fR
+Rules to display dependency information for
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fIRULES_PATH\fR>
+Path to YARA source file
+.SH "SEE ALSO"
+\fByr\fR(1)

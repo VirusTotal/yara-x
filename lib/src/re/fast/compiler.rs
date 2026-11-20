@@ -1,4 +1,3 @@
-use std::io::{Cursor, Seek, SeekFrom, Write};
 use std::mem;
 use std::mem::size_of;
 
@@ -483,32 +482,32 @@ impl Visitor for PatternSplitter {
 /// [`re::fast::fastvm::FastVM`].
 #[derive(Default)]
 struct InstrSeq {
-    seq: Cursor<Vec<u8>>,
+    seq: Vec<u8>,
 }
 
 impl InstrSeq {
     /// Creates a new [`InstrSeq`].
     pub fn new() -> Self {
-        Self { seq: Cursor::new(Vec::new()) }
+        Self { seq: Vec::new() }
     }
 
     /// Consumes the [`InstrSeq`] and returns the inner vector that contains
     /// the code.
     pub fn into_inner(self) -> Vec<u8> {
-        self.seq.into_inner()
+        self.seq
     }
 
     pub fn emit_match(&mut self) {
-        self.seq.write_all(&[Instr::MATCH]).unwrap();
+        self.seq.push(Instr::MATCH);
     }
 
     pub fn emit_jump_exact(&mut self, len: u32, accept_newlines: bool) {
         if accept_newlines {
-            self.seq.write_all(&[Instr::JUMP_EXACT]).unwrap();
+            self.seq.push(Instr::JUMP_EXACT);
         } else {
-            self.seq.write_all(&[Instr::JUMP_EXACT_NO_NEWLINE]).unwrap();
+            self.seq.push(Instr::JUMP_EXACT_NO_NEWLINE);
         }
-        self.seq.write_all(len.to_le_bytes().as_slice()).unwrap();
+        self.seq.extend_from_slice(&len.to_le_bytes());
     }
 
     pub fn emit_jump(
@@ -518,14 +517,14 @@ impl InstrSeq {
         accept_newlines: bool,
     ) {
         if accept_newlines {
-            self.seq.write_all(&[Instr::JUMP]).unwrap();
+            self.seq.push(Instr::JUMP);
         } else {
-            self.seq.write_all(&[Instr::JUMP_NO_NEWLINE]).unwrap();
+            self.seq.push(Instr::JUMP_NO_NEWLINE);
         }
-        self.seq.write_all(min.to_le_bytes().as_slice()).unwrap();
+        self.seq.extend_from_slice(&min.to_le_bytes());
         // When `max` is `None` it is encoded as 0 in the opcode. This is ok
         // because jumps with an upper bound of 0 are not allowed.
-        self.seq.write_all(max.unwrap_or(0).to_le_bytes().as_slice()).unwrap();
+        self.seq.extend_from_slice(&max.unwrap_or(0).to_le_bytes());
     }
 
     pub fn emit_pattern(&mut self, pattern: &Pattern) -> Result<(), Error> {
@@ -533,18 +532,18 @@ impl InstrSeq {
             Pattern::Literal(literal) => {
                 let len: u16 =
                     literal.len().try_into().map_err(|_| Error::TooLarge)?;
-                self.seq.write_all(&[Instr::LITERAL]).unwrap();
-                self.seq.write_all(len.to_le_bytes().as_slice()).unwrap();
-                self.seq.write_all(literal).unwrap();
+                self.seq.push(Instr::LITERAL);
+                self.seq.extend_from_slice(&len.to_le_bytes());
+                self.seq.extend_from_slice(literal);
             }
             Pattern::Masked(literal, mask) => {
                 assert_eq!(literal.len(), mask.len());
                 let len: u16 =
                     literal.len().try_into().map_err(|_| Error::TooLarge)?;
-                self.seq.write_all(&[Instr::MASKED_LITERAL]).unwrap();
-                self.seq.write_all(len.to_le_bytes().as_slice()).unwrap();
-                self.seq.write_all(literal).unwrap();
-                self.seq.write_all(mask).unwrap();
+                self.seq.push(Instr::MASKED_LITERAL);
+                self.seq.extend_from_slice(&len.to_le_bytes());
+                self.seq.extend_from_slice(literal);
+                self.seq.extend_from_slice(mask);
             }
         }
 
@@ -559,30 +558,25 @@ impl InstrSeq {
         // Write the opcode. The opcode will be followed by an u16 with the
         // size of all the alternatives. The code for the alternatives comes
         // after the size.
-        self.seq.write_all(&[Instr::ALTERNATION]).unwrap();
+        self.seq.push(Instr::ALTERNATION);
         // Store the location where the size of the alternatives will be put,
         // this location is needed for patching the size later.
-        let len_location = self.seq.position();
+        let len_location = self.seq.len();
         // The size is initially filled with zeroes.
-        self.seq.write_all(&[0x00; size_of::<u16>()]).unwrap();
+        self.seq.extend_from_slice(&[0x00; size_of::<u16>()]);
         // Store the location where the alternatives start, for computing the
         // size later.
-        let alternatives_loc = self.seq.position();
+        let alternatives_loc = self.seq.len();
         // Emit all alternatives.
         for pattern in alternatives {
             self.emit_pattern(pattern)?;
         }
         // Calculate the size of alternatives.
-        let alternatives_len = self.seq.position() - alternatives_loc;
-        // The size of alternatives should fit in a u16.
-        let alternatives_len =
-            alternatives_len.try_into().map_err(|_| Error::TooLarge)?;
-        self.seq.seek(SeekFrom::Start(len_location)).unwrap();
-        self.seq
-            .write_all(u16::to_le_bytes(alternatives_len).as_slice())
-            .unwrap();
-        // Go back to the end of the code.
-        self.seq.seek(SeekFrom::End(0)).unwrap();
+        let alternatives_len: u16 = (self.seq.len() - alternatives_loc)
+            .try_into()
+            .map_err(|_| Error::TooLarge)?;
+        self.seq[len_location..len_location + size_of::<u16>()]
+            .copy_from_slice(&alternatives_len.to_le_bytes());
 
         Ok(())
     }

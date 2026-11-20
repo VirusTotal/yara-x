@@ -41,11 +41,11 @@ use crate::compiler::{CompileContext, VarStack};
 use crate::re::hir::{ChainedPattern, ChainedPatternGap};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
-use crate::types::{Func, Struct, TypeValue};
+use crate::types::{Struct, TypeValue};
 use crate::utils::cast;
 use crate::variables::{Variable, VariableError, is_valid_identifier};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{WasmSymbols, wasm_exports};
+use crate::wasm::{WasmExport, WasmSymbols};
 use crate::{re, wasm};
 
 pub(crate) use crate::compiler::atoms::*;
@@ -495,11 +495,10 @@ impl<'a> Compiler<'a> {
         let global_symbols = symbol_table.push_new();
 
         // Add symbols for built-in functions like uint8, uint16, etc.
-        for export in wasm_exports().filter(|e| e.builtin()) {
-            let func = Rc::new(Func::from(export.mangled_name));
-            let symbol = Symbol::Func(func);
-
-            global_symbols.borrow_mut().insert(export.name, symbol);
+        for (name, func) in WasmExport::get_functions(|e| e.builtin()) {
+            global_symbols
+                .borrow_mut()
+                .insert(name, Symbol::Func(Rc::new(func)));
         }
 
         // Create the default namespace. Rule identifiers will be added to this
@@ -886,8 +885,10 @@ impl<'a> Compiler<'a> {
                     warnings: this.warnings.into(),
                     filesize_bounds,
                     header_constraints,
-                    regex_sets: this.regex_sets,
+                    regexp_sets: this.regex_sets,
                     literal_sets: this.literal_sets,
+                    compiled_regexps: Vec::new(),
+                    compiled_regexp_sets: Vec::new(),
                     fast_scan_max_matches: this.fast_scan_max_matches,
                     rules_profiling_enabled: cfg!(feature = "rules-profiling"),
                 },
@@ -916,6 +917,7 @@ impl<'a> Compiler<'a> {
         #[cfg(feature = "logging")]
         info!("WASM module build time: {:?}", Instant::elapsed(&start));
 
+        rules.init_regexp_caches();
         rules.build_ac_automaton();
         rules
     }

@@ -1,0 +1,34 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH YR-EXTRACT 1 "" YARA-X "User Commands"
+.SH NAME
+yr\-extract \- Extract data from container files
+.SH SYNOPSIS
+\fByr extract\fR [\fB\-\-max\-depth\fR] [\fB\-\-vba\-max\-extracted\-files\fR] [\fB\-\-zip\-max\-extracted\-files\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIFILE\fR> <\fIOUTPUT_DIR\fR>
+.SH DESCRIPTION
+Extract data from a container file
+.PP
+Given a container file (e.g., a ZIP archive), this command unpacks its contents
+recursively and saves the extracted files into the specified output directory,
+printing the path of each extracted file.
+.SH OPTIONS
+.TP
+\fB\-\-max\-depth\fR \fI<DEPTH>\fR [default: 3]
+Maximum container extraction depth
+.TP
+\fB\-\-vba\-max\-extracted\-files\fR \fI<FILES>\fR [default: 1000]
+Maximum number of files extracted per VBA document
+.TP
+\fB\-\-zip\-max\-extracted\-files\fR \fI<FILES>\fR [default: 1000]
+Maximum number of files extracted per ZIP archive
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fIFILE\fR>
+Path to container file
+.TP
+<\fIOUTPUT_DIR\fR>
+Output directory where extracted files will be saved
+.SH "SEE ALSO"
+\fByr\fR(1)

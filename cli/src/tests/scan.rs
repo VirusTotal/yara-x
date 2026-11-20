@@ -1,3 +1,5 @@
+use std::ffi::OsString;
+
 use assert_cmd::{Command, cargo_bin};
 use assert_fs::TempDir;
 use assert_fs::prelude::*;
@@ -695,16 +697,17 @@ fn count_omits_non_matching_files() {
 // Regression test for https://github.com/VirusTotal/yara-x/issues/785.
 //
 // When `yr scan` runs in an interactive terminal (both `stdout` and `stderr`
-// are TTYs), `ParWalker` uses an `indicatif::ProgressBar` to display the scan
-// progress. Previously, output lines were printed via `MultiProgress::println`,
-// which pads lines with spaces up to the terminal width instead of writing `\n`
+// are TTYs), `ParWalker` uses `Console` to display the scan progress.
+// Previously, output lines were printed via `MultiProgress::println`, which
+// padded lines with spaces up to the terminal width instead of writing `\n`
 // characters.
 //
 // Standard `Command` tests pipe `stdout` and `stderr`, so `is_tty()` is `false`
-// and the progress bar code path is not exercised. To test the interactive
-// terminal behavior, we allocate a pseudo-terminal (PTY) pair via `openpty` and
-// attach the child process's `stdin`, `stdout`, and `stderr` to the `slave` end
-// of the PTY while reading the combined terminal stream from the `master` end.
+// and the interactive console code path is not exercised. To test the
+// interactive terminal behavior, we allocate a pseudo-terminal (PTY) pair via
+// `openpty` and attach the child process's `stdin`, `stdout`, and `stderr` to
+// the `slave` end of the PTY while reading the combined terminal stream from
+// the `master` end.
 #[cfg(unix)]
 #[test]
 fn issue_785() {
@@ -735,8 +738,8 @@ fn issue_785() {
     let mut master_fd = -1;
     let mut slave_fd = -1;
 
-    // Set a non-zero terminal window size (80x24) so `indicatif` / `console`
-    // detects valid terminal dimensions when querying `TIOCGWINSZ`.
+    // Set a non-zero terminal window size (80x24) so `Console` detects valid
+    // terminal dimensions when querying `TIOCGWINSZ`.
     let ws = Winsize { ws_row: 24, ws_col: 80, ws_xpixel: 0, ws_ypixel: 0 };
 
     let ret = unsafe {
@@ -759,11 +762,9 @@ fn issue_785() {
         .arg("--print-strings")
         .arg("src/tests/testdata/foo.yar")
         .arg("src/tests/testdata/dummy.file")
-        // `TERM` must be set to a value other than `"dumb"` because `indicatif`
-        // checks `console::is_dumb()`, which on Unix returns `true` if `TERM` is
-        // unset or `"dumb"` (as is common in CI environments). When `is_dumb()` is
-        // `true`, `indicatif` falls back to a hidden draw target and bypasses its
-        // terminal rendering logic.
+        // `TERM` must be set to a value other than `"dumb"` because `Console`
+        // disables live rendering on Unix when `TERM` is unset or `"dumb"` (as
+        // is common in CI environments).
         .env("TERM", "xterm-256color")
         .stdin(Stdio::from(slave.try_clone().unwrap()))
         .stdout(Stdio::from(slave.try_clone().unwrap()))
@@ -1038,6 +1039,93 @@ fn text_output_inner_extracted_file() {
         ));
 }
 
+#[test]
+fn excludes_literal_files_and_directory_trees() {
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str("rule test { condition: filesize > 0 }")
+        .unwrap();
+
+    for path in [
+        "target/keep.bin",
+        "target/skip.bin",
+        "target/skip.bin.more",
+        "target/skip[1]/deep/excluded.bin",
+        "target/skip1/keep-too.bin",
+    ] {
+        temp.child(path).write_str("test").unwrap();
+    }
+
+    let mut exclude_arg = OsString::from("--exclude=");
+    exclude_arg
+        .push(temp.path().canonicalize().unwrap().join("target/skip[1]"));
+
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args(["scan", "--recursive", "--threads=1"])
+        .args(["--exclude", "target/skip.bin"])
+        .arg(exclude_arg)
+        .args(["rules.yar", "./target"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("keep.bin"))
+        .stdout(predicate::str::contains("keep-too.bin"))
+        .stdout(predicate::str::contains("excluded.bin").not())
+        .stdout(predicate::str::contains("skip.bin.more"))
+        .stdout(predicate::str::contains("skip.bin\n").not());
+}
+
+#[test]
+fn excluded_paths_are_skipped_before_metadata_in_scan_lists() {
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str("rule test { condition: filesize > 0 }")
+        .unwrap();
+    temp.child("keep.bin").write_str("test").unwrap();
+    temp.child("paths.txt")
+        .write_str("missing/deep/file.bin\nkeep.bin\n")
+        .unwrap();
+
+    for stdin in [false, true] {
+        let mut cmd = Command::new(cargo_bin!("yr"));
+        cmd.current_dir(temp.path()).args([
+            "scan",
+            "--scan-list",
+            "--exclude",
+            "./unused/../missing",
+            "rules.yar",
+            if stdin { "-" } else { "paths.txt" },
+        ]);
+        if stdin {
+            cmd.write_stdin("missing/deep/file.bin\nkeep.bin\n");
+        }
+        cmd.assert()
+            .success()
+            .stdout(predicate::str::contains("keep.bin"))
+            .stdout(predicate::str::contains("missing").not())
+            .stderr("");
+    }
+}
+
+#[test]
+fn excluded_explicit_targets_including_missing_paths_are_not_opened() {
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str("rule test { condition: filesize > 0 }")
+        .unwrap();
+    temp.child("skip/file.bin").write_str("test").unwrap();
+
+    for target in ["skip/file.bin", "skip/missing.bin", "skip"] {
+        Command::new(cargo_bin!("yr"))
+            .current_dir(temp.path())
+            .args(["scan", "--exclude", "skip", "rules.yar", target])
+            .assert()
+            .success()
+            .stdout("")
+            .stderr("");
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn text_output_inner_extracted_file_colors() {
@@ -1307,4 +1395,258 @@ fn max_depth() {
             vba_bin_path.display(),
             this_doc_path.display()
         ));
+}
+
+#[cfg(unix)]
+#[test]
+fn excluded_directories_are_not_descended_into() {
+    use std::fs::{Permissions, set_permissions};
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str("rule test { condition: filesize > 0 }")
+        .unwrap();
+    temp.child("target/keep.bin").write_str("test").unwrap();
+    temp.child("target/private/nested/file.bin").write_str("test").unwrap();
+
+    let private = temp.path().join("target/private");
+    set_permissions(&private, Permissions::from_mode(0o000)).unwrap();
+
+    let result = Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args([
+            "scan",
+            "--recursive",
+            "--exclude",
+            "target/private",
+            "rules.yar",
+            "target",
+        ])
+        .output();
+
+    set_permissions(&private, Permissions::from_mode(0o700)).unwrap();
+
+    let result = result.unwrap();
+    assert!(result.status.success());
+    assert!(result.stderr.is_empty(), "{:?}", result.stderr);
+    assert!(String::from_utf8_lossy(&result.stdout).contains("keep.bin"));
+    assert!(!String::from_utf8_lossy(&result.stdout).contains("file.bin"));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn excludes_non_utf8_directory_names() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str("rule test { condition: filesize > 0 }")
+        .unwrap();
+    temp.child("target/keep.bin").write_str("test").unwrap();
+
+    let excluded = temp
+        .path()
+        .join("target")
+        .join(OsString::from_vec(b"skip-\xff".to_vec()));
+    std::fs::create_dir(&excluded).unwrap();
+    std::fs::write(excluded.join("excluded.bin"), b"test").unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args(["scan", "--recursive", "--exclude"])
+        .arg(&excluded)
+        .args(["rules.yar", "target"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("keep.bin"))
+        .stdout(predicate::str::contains("excluded.bin").not())
+        .stderr("");
+}
+
+#[test]
+fn empty_exclusion_is_rejected_before_compiling_rules() {
+    Command::new(cargo_bin!("yr"))
+        .args([
+            "scan",
+            "--exclude",
+            "",
+            "src/tests/testdata/missing.yar",
+            "src/tests/testdata/dummy.file",
+        ])
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr(predicate::str::contains("--exclude"))
+        .stderr(predicate::str::contains("missing.yar").not());
+}
+
+#[test]
+fn invalid_scan_list_lines_do_not_abort_the_scan() {
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str("rule test { condition: filesize > 0 }")
+        .unwrap();
+    temp.child("skip/file.bin").write_str("test").unwrap();
+    temp.child("keep.bin").write_str("test").unwrap();
+    temp.child("paths.txt")
+        .write_str("\nskip/file.bin\n\nkeep.bin\n")
+        .unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args([
+            "scan",
+            "--scan-list",
+            "--exclude",
+            "skip",
+            "rules.yar",
+            "paths.txt",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("keep.bin"))
+        .stdout(predicate::str::contains("skip").not());
+}
+
+#[test]
+fn recursive_scan_of_excluded_file_target_is_not_an_error() {
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str("rule test { condition: filesize > 0 }")
+        .unwrap();
+    temp.child("skip/file.bin").write_str("test").unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args([
+            "scan",
+            "--recursive",
+            "--exclude",
+            "skip",
+            "rules.yar",
+            "skip/file.bin",
+        ])
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+}
+
+#[test]
+fn equivalent_spellings_of_the_current_directory_are_walked() {
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str("rule test { condition: filesize > 0 }")
+        .unwrap();
+    temp.child("keep/file.bin").write_str("test").unwrap();
+    temp.child("skip/file.bin").write_str("test").unwrap();
+
+    let dot_slash = if cfg!(windows) { r".\\" } else { ".//" };
+    let dot_dot = if cfg!(windows) { r".\." } else { "./." };
+
+    for target in [dot_slash, dot_dot] {
+        Command::new(cargo_bin!("yr"))
+            .current_dir(temp.path())
+            .args(["scan", "--recursive", "--exclude", "skip", "rules.yar"])
+            .arg(target)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("keep"))
+            .stdout(predicate::str::contains("skip").not())
+            .stderr("");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn exclusions_match_through_symlinked_parent_directories() {
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str("rule test { condition: filesize > 0 }")
+        .unwrap();
+    temp.child("real/work/keep/file.bin").write_str("test").unwrap();
+    temp.child("real/work/skip/file.bin").write_str("test").unwrap();
+
+    let real = temp.path().canonicalize().unwrap().join("real");
+    let link = temp.path().join("link");
+    std::os::unix::fs::symlink(&real, &link).unwrap();
+    let rules = temp.path().join("rules.yar");
+
+    // Exclusion uses the symlinked spelling while `.` resolves to `real/work`.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(link.join("work"))
+        .args(["scan", "--recursive", "--exclude"])
+        .arg(link.join("work/skip"))
+        .arg(&rules)
+        .arg(".")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("keep"))
+        .stdout(predicate::str::contains("skip").not());
+
+    // Target uses the symlinked spelling while exclusion is relative to `real/work`.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(real.join("work"))
+        .args(["scan", "--recursive", "--exclude", "skip"])
+        .arg(&rules)
+        .arg(link.join("work"))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("keep"))
+        .stdout(predicate::str::contains("skip").not());
+
+    // Missing intermediate directories under a symlinked ancestor still match.
+    temp.child("real/work/paths.txt")
+        .write_str("missing/sub/file.bin\nkeep/file.bin\n")
+        .unwrap();
+    Command::new(cargo_bin!("yr"))
+        .current_dir(link.join("work"))
+        .args(["scan", "--scan-list", "--exclude"])
+        .arg(link.join("work/missing/sub"))
+        .arg(&rules)
+        .arg("paths.txt")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("keep"))
+        .stdout(predicate::str::contains("missing").not())
+        .stderr("");
+
+    // Target reached through a symlink with a missing intermediate dir inside
+    // an excluded relative path also matches without trying to open it.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(real.join("work"))
+        .args(["scan", "--exclude", "skip"])
+        .arg(&rules)
+        .arg(link.join("work/skip/missing/file.bin"))
+        .assert()
+        .success()
+        .stdout("")
+        .stderr("");
+}
+
+#[cfg(windows)]
+#[test]
+fn exclusions_are_case_insensitive_on_windows() {
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str("rule test { condition: filesize > 0 }")
+        .unwrap();
+    temp.child("target/Keep/file.bin").write_str("test").unwrap();
+    temp.child("target/OneDrive/file.bin").write_str("test").unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args([
+            "scan",
+            "--recursive",
+            "--exclude",
+            r"TARGET\onedrive",
+            "rules.yar",
+            "target",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Keep"))
+        .stdout(predicate::str::contains("OneDrive").not());
 }

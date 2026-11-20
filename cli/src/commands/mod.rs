@@ -25,6 +25,7 @@ use std::borrow::Cow;
 use std::fs;
 use std::io::stdout;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, anyhow, bail};
 use clap::{
@@ -32,13 +33,12 @@ use clap::{
     value_parser,
 };
 use crossterm::tty::IsTty;
-use indicatif::{ProgressBar, ProgressStyle};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use yansi::Color::Green;
 use yansi::Paint;
 
 use crate::config::Config;
-use crate::walk::Draw;
+use crate::console::{Console, Draw};
 use crate::walk::Walker;
 use crate::{APP_HELP_TEMPLATE, commands, help};
 
@@ -57,6 +57,8 @@ pub fn command(name: &'static str) -> Command {
 
 pub fn cli() -> Command {
     command!()
+        .about("Pattern matching and malware research tool")
+        .long_about(help::APP_LONG_ABOUT)
         .author(crate_authors!("\n")) // requires `cargo` feature
         .arg_required_else_help(true)
         .arg(
@@ -265,13 +267,9 @@ where
     let ignore_invalid_rules = args.get_flag("ignore-invalid-rules");
     let mut compiler = create_compiler(external_vars, args, config)?;
 
-    let mut pb = if stdout().is_tty() {
-        let pb = ProgressBar::new_spinner();
-        pb.set_style(ProgressStyle::default_spinner().template("{msg}")?);
-        Some(pb)
-    } else {
-        None
-    };
+    let mut console = Console::new();
+    let render_period = Duration::from_millis(50);
+    let mut last_render: Option<Instant> = None;
 
     let mut state = CompileState::new();
 
@@ -292,11 +290,11 @@ where
             |file_path| {
                 state.file_in_progress = Some(file_path.into());
 
-                if let Some(pb) = pb.as_mut() {
-                    let width = crossterm::terminal::size()
-                        .map(|(w, _)| w as usize)
-                        .unwrap_or(80);
-                    pb.set_message(state.draw(width));
+                if let Some(console) = console.as_mut()
+                    && last_render.is_none_or(|t| t.elapsed() >= render_period)
+                {
+                    console.draw(&state);
+                    last_render = Some(Instant::now());
                 }
 
                 let src = fs::read(file_path).with_context(|| {
@@ -323,15 +321,15 @@ where
             // Any error occurred during walk is aborts the walk.
             Err,
         ) {
-            if let Some(pb) = pb {
-                pb.finish_and_clear();
+            if let Some(mut console) = console {
+                console.finish();
             }
             return Err(err);
         }
     }
 
-    if let Some(pb) = pb {
-        pb.finish_and_clear();
+    if let Some(mut console) = console {
+        console.finish();
     }
 
     for warning in compiler.warnings() {
@@ -387,13 +385,14 @@ impl CompileState {
 }
 
 impl Draw for CompileState {
-    fn draw(&self, _width: usize) -> String {
+    fn draw(&self, width: usize) -> String {
         if let Some(file) = &self.file_in_progress {
-            format!(
-                "{} {}...",
-                "Compiling".paint(Green).bold(),
-                file.display(),
-            )
+            // "Compiling " (10 cols) + "..." (3 cols) = 13 cols.
+            let (path, _) = truncate_with_ellipsis(
+                file.to_string_lossy(),
+                width.saturating_sub(13),
+            );
+            format!("{} {}...", "Compiling".paint(Green).bold(), path)
         } else {
             String::new()
         }
