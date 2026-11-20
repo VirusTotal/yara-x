@@ -886,7 +886,7 @@ impl<'a> Compiler<'a> {
                     warnings: this.warnings.into(),
                     filesize_bounds,
                     header_constraints,
-                    regex_sets: this.regex_sets,
+                    regexp_sets: this.regex_sets,
                     literal_sets: this.literal_sets,
                     compiled_regexps: Vec::new(),
                     compiled_regexp_sets: Vec::new(),

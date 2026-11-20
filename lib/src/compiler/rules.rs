@@ -133,16 +133,6 @@ pub struct Rules {
     /// `i` and `s` if present (e.g: `/foobar/`, `/foo/i`, `/bar/s`).
     pub(in crate::compiler) regex_pool: StringPool<RegExpId>,
 
-    /// Lazily compiled condition regular expressions shared by all scanners
-    /// using these rules.
-    ///
-    /// The regular expression strings in `regex_pool` are serialized with the
-    /// rules, while the compiled automata are runtime-only. The vector is
-    /// initialized when [`Rules`] are built or deserialized, and each regexp
-    /// is compiled lazily on first use.
-    #[serde(skip)]
-    pub(in crate::compiler) compiled_regexps: Vec<OnceLock<Regex>>,
-
     /// If `true`, the regular expressions in `regex_pool` are allowed to
     /// contain invalid escape sequences.
     pub(in crate::compiler) relaxed_re_syntax: bool,
@@ -255,7 +245,17 @@ pub struct Rules {
     /// expressions in a given set match the exact same target expression
     /// in the source code, allowing them to be compiled into a unified
     /// set automata for single-pass evaluation.
-    pub(in crate::compiler) regex_sets: FxHashMap<RegExpSetId, Vec<RegExpId>>,
+    pub(in crate::compiler) regexp_sets: FxHashMap<RegExpSetId, Vec<RegExpId>>,
+
+    /// Lazily compiled condition regular expressions shared by all scanners
+    /// using these rules.
+    ///
+    /// The regular expression strings in `regex_pool` are serialized with the
+    /// rules, while the compiled automata are runtime-only. The vector is
+    /// initialized when [`Rules`] are built or deserialized, and each regexp
+    /// is compiled lazily on first use.
+    #[serde(skip)]
+    pub(in crate::compiler) compiled_regexps: Vec<OnceLock<Regex>>,
 
     /// Lazily compiled `RegExpSet` automata shared by all scanners using these
     /// rules.
@@ -523,7 +523,7 @@ impl Rules {
         self.compiled_regexps =
             (0..self.regex_pool.len()).map(|_| OnceLock::new()).collect();
         self.compiled_regexp_sets =
-            (0..self.regex_sets.len()).map(|_| OnceLock::new()).collect();
+            (0..self.regexp_sets.len()).map(|_| OnceLock::new()).collect();
     }
 
     /// Returns a compiled regular expression by [`RegExpId`].
@@ -573,7 +573,7 @@ impl Rules {
     /// Builds the combined automaton for a given [`RegExpSetId`].
     #[cold]
     fn build_regex_set(&self, set_id: RegExpSetId) -> Option<Regex> {
-        let re_ids = self.regex_sets.get(&set_id)?;
+        let re_ids = self.regexp_sets.get(&set_id)?;
         let parser = re::parser::Parser::new()
             .relaxed_re_syntax(self.relaxed_re_syntax);
         let mut hirs = Vec::with_capacity(re_ids.len());
@@ -592,7 +592,7 @@ impl Rules {
         &self,
         set_id: RegExpSetId,
     ) -> Option<&[RegExpId]> {
-        self.regex_sets.get(&set_id).map(Vec::as_slice)
+        self.regexp_sets.get(&set_id).map(Vec::as_slice)
     }
 
     /// Returns the slice of [`LiteralId`]s belonging to a given [`LiteralSetId`].
@@ -1406,7 +1406,7 @@ mod tests {
         let rules = compiler.build();
         assert_eq!(rules.regex_pool.len(), 3);
         assert_eq!(rules.compiled_regexps.len(), 3);
-        assert_eq!(rules.regex_sets.len(), 1);
+        assert_eq!(rules.regexp_sets.len(), 1);
         assert_eq!(rules.compiled_regexp_sets.len(), 1);
 
         // Both caches are compiled lazily: empty until first evaluation.
