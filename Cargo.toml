@@ -111,7 +111,7 @@ wasm-bindgen-test = "0.3.80"
 wasmtime = { version = "48.0.10", default-features = false }
 x509-parser = "0.18.1"
 yansi = "1.0.1"
-yara-x = { path = "lib", version = "=1.23.0", default-features = false, features = [
+yara-x = { path = "lib", version = "=1.24.0", default-features = false, features = [
     "constant-folding",
     "exact-atoms",
     "fast-regexp",
