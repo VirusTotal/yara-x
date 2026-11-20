@@ -4,7 +4,7 @@
 .SH NAME
 yr\-scan \- Scan a file or directory
 .SH SYNOPSIS
-\fByr scan\fR [\fB\-C\fR|\fB\-\-compiled\-rules\fR] [\fB\-c\fR|\fB\-\-count\fR] [\fB\-\-cpu\-limit\fR] [\fB\-d\fR|\fB\-\-define\fR] [\fB\-\-disable\-console\-logs\fR] [\fB\-w\fR|\fB\-\-disable\-warnings\fR] [\fB\-f\fR|\fB\-\-fast\-scan\fR] [\fB\-\-ignore\-invalid\-rules\fR] [\fB\-I\fR|\fB\-\-ignore\-module\fR] [\fB\-\-include\-dir\fR] [\fB\-\-max\-matches\-per\-pattern\fR] [\fB\-x\fR|\fB\-\-module\-data\fR] [\fB\-n\fR|\fB\-\-negate\fR] [\fB\-\-no\-mmap\fR] [\fB\-o\fR|\fB\-\-output\-format\fR] [\fB\-\-path\-as\-namespace\fR] [\fB\-m\fR|\fB\-\-print\-meta\fR] [\fB\-e\fR|\fB\-\-print\-namespace\fR] [\fB\-s\fR|\fB\-\-print\-strings\fR] [\fB\-g\fR|\fB\-\-print\-tags\fR] [\fB\-\-profiling\fR] [\fB\-r\fR|\fB\-\-recursive\fR] [\fB\-\-relaxed\-re\-syntax\fR] [\fB\-\-scan\-list\fR] [\fB\-z\fR|\fB\-\-skip\-larger\fR] [\fB\-t\fR|\fB\-\-tag\fR] [\fB\-p\fR|\fB\-\-threads\fR] [\fB\-a\fR|\fB\-\-timeout\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fI[NAMESPACE:]RULES_PATH\fR> <\fITARGET_PATH\fR>
+\fByr scan\fR [\fB\-C\fR|\fB\-\-compiled\-rules\fR] [\fB\-c\fR|\fB\-\-count\fR] [\fB\-\-cpu\-limit\fR] [\fB\-d\fR|\fB\-\-define\fR] [\fB\-\-disable\-console\-logs\fR] [\fB\-w\fR|\fB\-\-disable\-warnings\fR] [\fB\-\-exclude\fR] [\fB\-f\fR|\fB\-\-fast\-scan\fR] [\fB\-\-ignore\-invalid\-rules\fR] [\fB\-I\fR|\fB\-\-ignore\-module\fR] [\fB\-\-include\-dir\fR] [\fB\-\-max\-matches\-per\-pattern\fR] [\fB\-x\fR|\fB\-\-module\-data\fR] [\fB\-n\fR|\fB\-\-negate\fR] [\fB\-\-no\-mmap\fR] [\fB\-o\fR|\fB\-\-output\-format\fR] [\fB\-\-path\-as\-namespace\fR] [\fB\-m\fR|\fB\-\-print\-meta\fR] [\fB\-e\fR|\fB\-\-print\-namespace\fR] [\fB\-s\fR|\fB\-\-print\-strings\fR] [\fB\-g\fR|\fB\-\-print\-tags\fR] [\fB\-\-profiling\fR] [\fB\-r\fR|\fB\-\-recursive\fR] [\fB\-\-relaxed\-re\-syntax\fR] [\fB\-\-scan\-list\fR] [\fB\-z\fR|\fB\-\-skip\-larger\fR] [\fB\-t\fR|\fB\-\-tag\fR] [\fB\-p\fR|\fB\-\-threads\fR] [\fB\-a\fR|\fB\-\-timeout\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fI[NAMESPACE:]RULES_PATH\fR> <\fITARGET_PATH\fR>
 .SH DESCRIPTION
 Scan a file or directory
 .PP
@@ -68,6 +68,28 @@ Examples:
 \-\-disable\-warnings=slow_pattern
 \-\-disable\-warnings=slow_rules,redundant_modifier
 \-\-disable\-warnings=slow_rules \-\-disable\-warnings=redundant_modifier
+.fi
+.TP
+\fB\-\-exclude\fR \fI<PATH>\fR
+Exclude a file or directory from scanning
+
+May be specified more than once. Directory paths exclude the entire subtree
+without traversing it. Also applies to single\-file targets and `\-\-scan\-list`
+entries. Relative paths are resolved against the current working directory, not
+<TARGET_PATH>.
+
+Paths are literal, not glob patterns. Quote shell wildcard characters.
+Symbolic links in parent directories are resolved when matching paths (for
+example, if `link` points to `real`, excluding `link/dir` also excludes
+`real/dir`). The excluded file or directory itself is never opened. On Windows,
+matching is case\-insensitive. Exclusions affect scan targets, not rule
+compilation.
+
+Examples:
+
+.nf
+yr scan \-\-recursive \-\-exclude ./files/private rules.yar ./files
+yr scan \-\-exclude ./files/excluded.bin \-\-exclude ./files/private rules.yar ./files
 .fi
 .TP
 \fB\-f\fR, \fB\-\-fast\-scan\fR

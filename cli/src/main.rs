@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
         process::exit(EXIT_ERROR);
     }));
 
-    let args = cli().get_matches_from(wild::args());
+    let args = cli().get_matches_from(wild::args_os());
 
     // The config file is either the one specified by `--config` or
     // `$HOME/.yara-x.toml`. If the file does not exist, or $HOME is

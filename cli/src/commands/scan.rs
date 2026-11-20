@@ -65,6 +65,11 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(u8).range(1..=99)),
             arg!(--"disable-console-logs")
                 .help("Disable printing console log messages"),
+            arg!(--"exclude" <PATH>)
+                .help("Exclude a file or directory from scanning")
+                .long_help(help::SCAN_EXCLUDE_LONG_HELP)
+                .value_parser(value_parser!(PathBuf))
+                .action(ArgAction::Append),
             arg!(-f --"fast-scan")
                 .help("Enable fast-scan mode")
                 .long_help(help::FAST_SCAN_LONG_HELP),
@@ -211,7 +216,20 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         );
     }
 
-    if recursive.is_some() && target_path.is_file() {
+    // Validate exclusions before compiling rules, and avoid inspecting the
+    // target at all when it is excluded.
+    let mut exclusions = walk::Exclusions::default();
+
+    if let Some(excluded_paths) = args.get_many::<PathBuf>("exclude") {
+        exclusions = walk::Exclusions::new();
+        for path in excluded_paths {
+            exclusions.add(path)?;
+        }
+    }
+
+    let target_excluded = !scan_list && exclusions.contains(target_path);
+
+    if recursive.is_some() && !target_excluded && target_path.is_file() {
         bail!(
             "can't use '{}' when <TARGET_PATH> is a file",
             Paint::bold("--recursive")
@@ -262,6 +280,8 @@ pub fn exec_scan(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
     } else {
         walk::ParWalker::path(target_path)
     };
+
+    w.exclusions(exclusions);
 
     if let Some(num_threads) = num_threads {
         w.num_threads(*num_threads);
