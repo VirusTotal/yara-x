@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod console;
 mod help;
 mod walk;
 

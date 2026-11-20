@@ -23,7 +23,7 @@ use crate::commands::{
     meta_file_value_parser, path_with_namespace_parser,
     truncate_with_ellipsis,
 };
-use crate::walk::Draw;
+use crate::console::Draw;
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -578,10 +578,11 @@ impl Draw for ScanState {
         output.push('\n');
 
         output.push_str(&"╶".repeat(width));
-        output.push('\n');
 
         for (file, start_time) in self.files_in_progress.lock().unwrap().iter()
         {
+            output.push('\n');
+
             let max_path_with = width.saturating_sub(7);
 
             let (path, path_width) = truncate_with_ellipsis(
@@ -598,7 +599,6 @@ impl Draw for ScanState {
                 Instant::elapsed(start_time).as_secs_f32()
             );
             output.push_str(&line);
-            output.push('\n');
         }
 
         output

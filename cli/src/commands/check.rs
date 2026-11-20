@@ -11,7 +11,7 @@ use yara_x::{SourceCode, linters};
 use yara_x_parser::ast::MetaValue;
 
 use crate::config::{Config, MetaValueType};
-use crate::walk::Draw;
+use crate::console::Draw;
 use crate::walk::Message;
 use crate::{help, walk};
 

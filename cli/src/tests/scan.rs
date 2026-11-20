@@ -697,16 +697,17 @@ fn count_omits_non_matching_files() {
 // Regression test for https://github.com/VirusTotal/yara-x/issues/785.
 //
 // When `yr scan` runs in an interactive terminal (both `stdout` and `stderr`
-// are TTYs), `ParWalker` uses an `indicatif::ProgressBar` to display the scan
-// progress. Previously, output lines were printed via `MultiProgress::println`,
-// which pads lines with spaces up to the terminal width instead of writing `\n`
+// are TTYs), `ParWalker` uses `Console` to display the scan progress.
+// Previously, output lines were printed via `MultiProgress::println`, which
+// padded lines with spaces up to the terminal width instead of writing `\n`
 // characters.
 //
 // Standard `Command` tests pipe `stdout` and `stderr`, so `is_tty()` is `false`
-// and the progress bar code path is not exercised. To test the interactive
-// terminal behavior, we allocate a pseudo-terminal (PTY) pair via `openpty` and
-// attach the child process's `stdin`, `stdout`, and `stderr` to the `slave` end
-// of the PTY while reading the combined terminal stream from the `master` end.
+// and the interactive console code path is not exercised. To test the
+// interactive terminal behavior, we allocate a pseudo-terminal (PTY) pair via
+// `openpty` and attach the child process's `stdin`, `stdout`, and `stderr` to
+// the `slave` end of the PTY while reading the combined terminal stream from
+// the `master` end.
 #[cfg(unix)]
 #[test]
 fn issue_785() {
@@ -737,8 +738,8 @@ fn issue_785() {
     let mut master_fd = -1;
     let mut slave_fd = -1;
 
-    // Set a non-zero terminal window size (80x24) so `indicatif` / `console`
-    // detects valid terminal dimensions when querying `TIOCGWINSZ`.
+    // Set a non-zero terminal window size (80x24) so `Console` detects valid
+    // terminal dimensions when querying `TIOCGWINSZ`.
     let ws = Winsize { ws_row: 24, ws_col: 80, ws_xpixel: 0, ws_ypixel: 0 };
 
     let ret = unsafe {
@@ -761,11 +762,9 @@ fn issue_785() {
         .arg("--print-strings")
         .arg("src/tests/testdata/foo.yar")
         .arg("src/tests/testdata/dummy.file")
-        // `TERM` must be set to a value other than `"dumb"` because `indicatif`
-        // checks `console::is_dumb()`, which on Unix returns `true` if `TERM` is
-        // unset or `"dumb"` (as is common in CI environments). When `is_dumb()` is
-        // `true`, `indicatif` falls back to a hidden draw target and bypasses its
-        // terminal rendering logic.
+        // `TERM` must be set to a value other than `"dumb"` because `Console`
+        // disables live rendering on Unix when `TERM` is unset or `"dumb"` (as
+        // is common in CI environments).
         .env("TERM", "xterm-256color")
         .stdin(Stdio::from(slave.try_clone().unwrap()))
         .stdout(Stdio::from(slave.try_clone().unwrap()))

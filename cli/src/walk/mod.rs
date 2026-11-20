@@ -8,18 +8,14 @@ use std::{io, thread};
 
 use anyhow::{Context, bail};
 use crossbeam::channel::{RecvTimeoutError, SendError, Sender};
-use crossterm::tty::IsTty;
 use ignore::overrides::OverrideBuilder;
-use indicatif::{ProgressBar, ProgressStyle};
 use walkdir::WalkDir;
+
+use crate::console::{Console, Draw};
 
 mod exclusions;
 pub use exclusions::Exclusions;
 use exclusions::ParentCache;
-
-pub trait Draw {
-    fn draw(&self, width: usize) -> String;
-}
 
 /// Walks the files in a directory or a text file containing file paths,
 /// running a given function for each file.
@@ -638,12 +634,7 @@ impl<'a> ParWalker<'a> {
 
             let render_period = Duration::from_secs_f64(0.150);
 
-            output_messages(
-                render_period,
-                Instant::now(),
-                msg_recv,
-                state.clone(),
-            );
+            output_messages(render_period, msg_recv, state.clone());
 
             threads.into_iter().for_each(|thread| thread.join().unwrap());
 
@@ -653,12 +644,7 @@ impl<'a> ParWalker<'a> {
             let handle = {
                 let state = state.clone();
                 thread::spawn(move || {
-                    output_messages(
-                        render_period,
-                        Instant::now(),
-                        msg_recv,
-                        state.clone(),
-                    );
+                    output_messages(render_period, msg_recv, state.clone());
                 })
             };
 
@@ -679,68 +665,41 @@ impl<'a> ParWalker<'a> {
 
 fn output_messages<S>(
     render_period: Duration,
-    last_render: Instant,
     msg_recv: crossbeam::channel::Receiver<Message>,
     state: Arc<S>,
 ) where
     S: Draw,
 {
-    let mut last_render = last_render;
-
-    // `pb` will be `None` if the `stderr-logs` feature is enabled or if
-    // either stdout or stderr is not a tty (for example when any of them
-    // are redirected to a file).
-    let pb = if cfg!(feature = "stderr-logs") {
-        None
-    } else if io::stdout().is_tty() && io::stderr().is_tty() {
-        let pb = ProgressBar::new_spinner();
-        pb.set_style(
-            ProgressStyle::default_spinner().template("{msg}").unwrap(),
-        );
-        Some(pb)
-    } else {
-        None
+    let Some(mut console) = Console::new() else {
+        for msg in msg_recv {
+            match msg {
+                Message::Info(s) => println!("{s}"),
+                Message::Error(s) => eprintln!("{s}"),
+                Message::Abort => break,
+            }
+        }
+        return;
     };
 
+    let mut last_render = Instant::now();
+
     loop {
-        match msg_recv.recv_timeout(render_period) {
-            Ok(Message::Info(s)) => {
-                if let Some(pb) = &pb {
-                    pb.suspend(|| println!("{s}"));
-                } else {
-                    println!("{s}")
-                }
-            }
-            Ok(Message::Error(s)) => {
-                if let Some(pb) = &pb {
-                    pb.suspend(|| eprintln!("{s}"));
-                } else {
-                    eprintln!("{s}")
-                }
-            }
-            Ok(Message::Abort) => {
-                break;
-            }
-            Err(RecvTimeoutError::Disconnected) => {
-                break;
-            }
+        let remaining = render_period.saturating_sub(last_render.elapsed());
+
+        match msg_recv.recv_timeout(remaining) {
+            Ok(Message::Info(s)) => console.emit_stdout(s),
+            Ok(Message::Error(s)) => console.emit_stderr(s),
+            Ok(Message::Abort) | Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => {}
         }
 
-        if let Some(pb) = &pb
-            && Instant::elapsed(&last_render) > render_period
-        {
-            let width = crossterm::terminal::size()
-                .map(|(w, _)| w as usize)
-                .unwrap_or(80);
-            pb.set_message(state.draw(width));
+        if last_render.elapsed() >= render_period {
+            console.draw(state.as_ref());
             last_render = Instant::now();
         }
     }
 
-    if let Some(pb) = pb {
-        pb.finish_and_clear();
-    }
+    console.finish();
 }
 
 pub enum Message {
