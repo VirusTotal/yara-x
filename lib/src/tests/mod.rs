@@ -2793,6 +2793,24 @@ fn regexp_wide() {
         b"B\x001\x00c\x00",
         b"B\x001\x00"
     );
+
+    // Jumps landing on the zero padding of a wide character. The byte that
+    // follows the jump also occurs at odd offsets inside the jump window,
+    // where it is padding and not the start of a character, so a jump that
+    // stops there matches the rest of the pattern one byte off.
+    pattern_match!(
+        r"/009.*\x00/ wide",
+        b"0\x000\x009\x00\x00\x00\xff\x00\x00\x00\x00",
+        b"0\x000\x009\x00\x00\x00\xff\x00\x00\x00"
+    );
+    pattern_false!(
+        r"/\x00b\x0a.*?\x00/s wide",
+        b"\x00\x00b\x00\n\x00b\x00\x00"
+    );
+    pattern_false!(
+        r"/.{2,4}Cb0.{1,}\x00/s wide",
+        b"\x00\x000\x00C\x00b\x000\x00b\x00A\x00\x00"
+    );
 }
 
 #[test]
