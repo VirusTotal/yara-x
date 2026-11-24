@@ -2355,6 +2355,57 @@ fn regexp_patterns_6() {
         }"#,
         b"\n\nabc"
     );
+
+    // Trailing jumps reaching end of input or exhausted input.
+    pattern_match!(r"/abc.{0,4}/s", b"abcx", b"abcx");
+    pattern_match!(r"/abc.{0,4}/s", b"abc", b"abc");
+    pattern_false!(r"/abc.{1,4}/s", b"abc");
+    pattern_match!(r"/abc.{0,4}?/s", b"abcx", b"abc");
+
+    // Leading jumps reaching start of input or exhausted input at offset 0.
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /.{0,2}aba/s
+            condition:
+                #a == 2 and
+                @a[1] == 0 and !a[1] == 4 and
+                @a[2] == 1 and !a[2] == 3
+        }"#,
+        b"9aba"
+    );
+    pattern_match!(r"/.{0,1}(CAc|B1)/s", b"B1cc9", b"B1");
+    pattern_false!(r"/.{1,2}(CAc|B1)/s", b"B1cc9");
+
+    // Edge jumps that disallow newlines.
+    pattern_match!(r"/abc.{0,4}/", b"abc\n", b"abc");
+    pattern_match!(r"/abc.{0,4}/", b"abcx\ny", b"abcx");
+    pattern_false!(r"/abc.{2,4}/", b"abcx\nyz");
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /.{0,4}abc/
+            condition:
+                #a == 1 and
+                @a[1] == 1 and !a[1] == 3
+        }"#,
+        b"\nabc"
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /.{0,4}abc/
+            condition:
+                #a == 2 and
+                @a[1] == 2 and !a[1] == 4 and
+                @a[2] == 3 and !a[2] == 3
+        }"#,
+        b"y\nxabc"
+    );
+
+    pattern_false!(r"/.{2,4}abc/", b"zy\nxabc");
 }
 
 #[test]
@@ -2667,6 +2718,28 @@ fn regexp_wide() {
     );
     pattern_false!(r"/abc.{0,4}\nX/ wide", b"a\0b\0c\0\n\0\n\0X\0");
     pattern_false!(r"/X\n.{0,4}abc/ wide", b"X\0\n\0\n\0a\0b\0c\0");
+
+    // Edge jumps in wide mode, including trailing/leading odd bytes.
+    pattern_match!(
+        r"/abc.{0,4}/s wide",
+        b"a\x00b\x00c\x00x\x00\xaa",
+        b"a\x00b\x00c\x00x\x00"
+    );
+    pattern_match!(
+        r"/abc.{0,4}/s wide",
+        b"a\x00b\x00c\x00",
+        b"a\x00b\x00c\x00"
+    );
+    pattern_match!(
+        r"/.{0,2}aba/s wide",
+        b"\xaa9\x00a\x00b\x00a\x00",
+        b"9\x00a\x00b\x00a\x00"
+    );
+    pattern_match!(
+        r"/.{0,1}(CAc|B1)/s wide",
+        b"B\x001\x00c\x00",
+        b"B\x001\x00"
+    );
 }
 
 #[test]

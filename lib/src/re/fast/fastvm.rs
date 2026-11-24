@@ -253,7 +253,10 @@ impl<'r> FastVM<'r> {
                         };
 
                     for &position in self.positions.iter() {
-                        if position >= input.len() {
+                        // `position == input.len()` means the input is
+                        // exhausted. That is not a dead end: a jump whose
+                        // minimum is zero can still consume nothing.
+                        if position > input.len() {
                             continue;
                         }
                         if backwards {
@@ -426,9 +429,11 @@ impl FastVM<'_> {
     /// (`&full_input[position..]`). When `byte_after_jmp` is `Some(b)` (the
     /// known leading byte of the instruction immediately following the jump),
     /// SIMD `memchr` / `memchr2` is used to record only offsets within the jump
-    /// window where `b` actually occurs; when [`JumpFlags::AcceptNewlines`] is
-    /// not set, any `0x0A` byte in the mandatory prefix or jump window halts
-    /// further expansion from `position`.
+    /// window where `b` actually occurs; when `byte_after_jmp` is `None`,
+    /// every valid step-aligned jump length in `n..=min(m, input.len())` is
+    /// inserted. When [`JumpFlags::AcceptNewlines`] is not set, any `0x0A`
+    /// byte in the mandatory prefix or jump window halts further expansion
+    /// from `position`.
     #[inline]
     fn jump_fwd(
         input: &[u8],
@@ -439,9 +444,31 @@ impl FastVM<'_> {
         next_positions: &mut PositionSet,
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
+        let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
 
         let n = (*range.start() as usize).saturating_mul(step);
         let m = (*range.end() as usize).saturating_mul(step);
+
+        // When no fixed byte follows the jump (e.g. the jump is the last
+        // instruction in the pattern, or is followed by an alternation or
+        // masked literal without a fixed leading byte), we cannot search for a
+        // sentinel byte after the jump — and unlike the `Some(b)` path below,
+        // the jump is allowed to consume up to `input.len()` itself.
+        let Some(b) = byte_after_jmp else {
+            let mut max = cmp::min(m, input.len());
+            // When newlines are disallowed, stop before the first 0x0A so no
+            // jump length consumes it. If 0x0A falls within the mandatory
+            // prefix `0..n`, `max` becomes `< n` and the range below is empty.
+            if !accept_newlines
+                && let Some(nl) = memchr::memchr(0x0A, &input[..max])
+            {
+                max = nl;
+            }
+            for len in (n..=max).step_by(step) {
+                next_positions.insert(position + len);
+            }
+            return;
+        };
 
         let range_min = n;
         let range_max = cmp::min(input.len(), m.saturating_add(step));
@@ -453,7 +480,7 @@ impl FastVM<'_> {
         // If newlines are not accepted in the data being skipped by the jump
         // lets make sure that the ranges that goes from the current position
         // to position + n doesn't contain any newlines.
-        if !flags.contains(JumpFlags::AcceptNewlines)
+        if !accept_newlines
             && memchr::memchr(0x0A, &input[..range_min]).is_some()
         {
             return;
@@ -465,43 +492,30 @@ impl FastVM<'_> {
             next_positions.insert(position + range_min + offset);
         };
 
-        let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
-
-        match byte_after_jmp {
-            Some(b) if !accept_newlines => {
-                // Search for the literal byte and the newline at the same
-                // time. Any offset found before the newline is a position
-                // that needs to be verified, but once the newline is found
-                // no more positions will match and we can return.
-                //
-                // There's an edge case when the literal byte is also a
-                // newline: the first newline itself is a valid position for
-                // the literal, but the jump still cannot cross it, so we
-                // must return immediately after recording it.
-                for offset in memchr::memchr2_iter(b, 0x0A, jmp_range) {
-                    if jmp_range[offset] == b {
-                        on_match_found(offset);
-                    }
-                    if jmp_range[offset] == 0x0A {
-                        return;
-                    }
+        if !accept_newlines {
+            // Search for the literal byte and the newline at the same
+            // time. Any offset found before the newline is a position
+            // that needs to be verified, but once the newline is found
+            // no more positions will match and we can return.
+            //
+            // There's an edge case when the literal byte is also a
+            // newline: the first newline itself is a valid position for
+            // the literal, but the jump still cannot cross it, so we
+            // must return immediately after recording it.
+            for offset in memchr::memchr2_iter(b, 0x0A, jmp_range) {
+                if jmp_range[offset] == b {
+                    on_match_found(offset);
+                }
+                if jmp_range[offset] == 0x0A {
+                    return;
                 }
             }
-            Some(b) if accept_newlines => {
-                // If newlines are accepted, we can search for the literal
-                // byte alone. There are potential matches only at the
-                // positions where the byte is found.
-                for offset in memchr::memchr_iter(b, jmp_range) {
-                    on_match_found(offset)
-                }
-            }
-            _ => {
-                for (offset, byte) in jmp_range.iter().enumerate() {
-                    if !accept_newlines && *byte == 0x0A {
-                        return;
-                    }
-                    on_match_found(offset)
-                }
+        } else {
+            // If newlines are accepted, we can search for the literal
+            // byte alone. There are potential matches only at the
+            // positions where the byte is found.
+            for offset in memchr::memchr_iter(b, jmp_range) {
+                on_match_found(offset)
             }
         }
     }
@@ -515,8 +529,10 @@ impl FastVM<'_> {
     /// `expected_after_jump` is `Some(b)` (the known trailing byte of the
     /// preceding sub-pattern in backward execution), reverse SIMD `memrchr` /
     /// `memrchr2` scans right-to-left so only candidate positions preceded by
-    /// `b` are inserted, stopping at the first `0x0A` when
-    /// [`JumpFlags::AcceptNewlines`] is not set.
+    /// `b` are inserted; when `expected_after_jump` is `None`, every valid
+    /// step-aligned jump length in `n..=min(m, input.len())` is inserted. When
+    /// [`JumpFlags::AcceptNewlines`] is not set, any `0x0A` byte halts further
+    /// expansion from `position`.
     #[inline]
     fn jump_bck(
         input: &[u8],
@@ -527,6 +543,7 @@ impl FastVM<'_> {
         next_positions: &mut PositionSet,
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
+        let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
 
         let n = (*range.start() as usize).saturating_mul(step);
         let m = (*range.end() as usize).saturating_mul(step);
@@ -551,6 +568,31 @@ impl FastVM<'_> {
         //             ^              ^
         //             range_min      range_max
         //
+        // When no fixed byte precedes the jump (e.g. the jump is the first
+        // instruction in the pattern, or is preceded by an alternation or
+        // masked literal without a fixed trailing byte), we cannot search for
+        // a sentinel byte before the jump — and unlike the `Some(b)` path
+        // below, the jump is allowed to consume all of `input` back to offset
+        // 0.
+        let Some(b) = expected_after_jump else {
+            let mut max = cmp::min(m, input.len());
+            // When newlines are disallowed, stop before the rightmost 0x0A in
+            // the candidate suffix `input[input.len() - max..]` so no jump
+            // length consumes it. `nl` is the index within that suffix, so at
+            // most `max - nl - 1` bytes lie to its right; if that is `< n`
+            // (0x0A inside the mandatory prefix), the range below is empty.
+            if !accept_newlines
+                && let Some(nl) =
+                    memchr::memrchr(0x0A, &input[input.len() - max..])
+            {
+                max = max - nl - 1;
+            }
+            for len in (n..=max).step_by(step) {
+                next_positions.insert(position + len);
+            }
+            return;
+        };
+
         let range_min = input.len().saturating_sub(m.saturating_add(step));
         let range_max = input.len().saturating_sub(n);
 
@@ -561,7 +603,7 @@ impl FastVM<'_> {
         // If newlines are not accepted in the data being skipped by the jump
         // lets make sure that the ranges that goes from the current position
         // to position + n doesn't contain any newlines.
-        if !flags.contains(JumpFlags::AcceptNewlines)
+        if !accept_newlines
             && memchr::memchr(0x0A, &input[range_max..]).is_some()
         {
             return;
@@ -575,43 +617,30 @@ impl FastVM<'_> {
             }
         };
 
-        let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
-
-        match expected_after_jump {
-            Some(b) if !accept_newlines => {
-                // Search for the literal byte and the newline at the same
-                // time. Any offset found before the newline is a position
-                // that needs to be verified, but once the newline is found
-                // no more positions will match and we can return.
-                //
-                // There's an edge case when the literal byte is also a
-                // newline: the first newline itself is a valid position for
-                // the literal, but the jump still cannot cross it, so we
-                // must return immediately after recording it.
-                for offset in memchr::memrchr2_iter(b, 0x0A, jmp_range) {
-                    if jmp_range[offset] == b {
-                        on_match_found(offset);
-                    }
-                    if jmp_range[offset] == 0x0A {
-                        return;
-                    }
+        if !accept_newlines {
+            // Search for the literal byte and the newline at the same
+            // time. Any offset found before the newline is a position
+            // that needs to be verified, but once the newline is found
+            // no more positions will match and we can return.
+            //
+            // There's an edge case when the literal byte is also a
+            // newline: the first newline itself is a valid position for
+            // the literal, but the jump still cannot cross it, so we
+            // must return immediately after recording it.
+            for offset in memchr::memrchr2_iter(b, 0x0A, jmp_range) {
+                if jmp_range[offset] == b {
+                    on_match_found(offset);
+                }
+                if jmp_range[offset] == 0x0A {
+                    return;
                 }
             }
-            Some(b) if accept_newlines => {
-                // If newlines are accepted, we can search for the literal
-                // byte alone. There are potential matches only at the
-                // positions where the byte is found.
-                for offset in memchr::memrchr_iter(b, jmp_range) {
-                    on_match_found(offset)
-                }
-            }
-            _ => {
-                for (offset, byte) in jmp_range.iter().enumerate().rev() {
-                    if !accept_newlines && *byte == 0x0A {
-                        return;
-                    }
-                    on_match_found(offset)
-                }
+        } else {
+            // If newlines are accepted, we can search for the literal
+            // byte alone. There are potential matches only at the
+            // positions where the byte is found.
+            for offset in memchr::memrchr_iter(b, jmp_range) {
+                on_match_found(offset)
             }
         }
     }
