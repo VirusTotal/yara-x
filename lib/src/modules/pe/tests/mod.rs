@@ -491,6 +491,58 @@ fn image_directory_constants() {
     );
 }
 
+macro_rules! machine_constant_test {
+    ($test:ident, $name:literal, $value:literal) => {
+        #[test]
+        fn $test() {
+            rule_true!(
+                format!(
+                    "import \"pe\" rule test {{ condition: pe.{} == {} and not defined pe.machine }}",
+                    $name, $value
+                )
+                .as_str(),
+                &[]
+            );
+        }
+    };
+}
+
+machine_constant_test!(machine_target_host, "MACHINE_TARGET_HOST", 0x0001);
+machine_constant_test!(machine_sh3e, "MACHINE_SH3E", 0x01a4);
+machine_constant_test!(machine_tricore, "MACHINE_TRICORE", 0x0520);
+machine_constant_test!(machine_cef, "MACHINE_CEF", 0x0cef);
+machine_constant_test!(machine_cee, "MACHINE_CEE", 0xc0ee);
+
+#[test]
+fn machine_values_in_pe() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/c6f9709feccf42f2d9e22057182fe185f177fb9daaa2649b4669a24f2ee7e3ba.in.zip",
+    );
+    rule_true!(
+        r#"import "pe" rule test { condition: pe.is_pe and pe.machine == pe.MACHINE_I386 }"#,
+        &pe
+    );
+    let offset = u32::from_le_bytes(pe[0x3c..0x40].try_into().unwrap()) as usize + 4;
+    for (name, value) in [
+        ("MACHINE_TARGET_HOST", 0x0001_u16),
+        ("MACHINE_SH3E", 0x01a4),
+        ("MACHINE_TRICORE", 0x0520),
+        ("MACHINE_CEF", 0x0cef),
+        ("MACHINE_CEE", 0xc0ee),
+    ] {
+        let mut patched = pe.clone();
+        patched[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
+        rule_true!(
+            format!(
+                "import \"pe\" rule test {{ condition: pe.is_pe and pe.machine == pe.{} }}",
+                name
+            )
+            .as_str(),
+            &patched
+        );
+    }
+}
+
 #[test]
 fn rva_to_offset() {
     let pe = create_binary_from_zipped_ihex(
