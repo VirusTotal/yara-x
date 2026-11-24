@@ -315,13 +315,18 @@ impl<'a> Walker<'a> {
                 }
             };
 
-            // Only process regular files (skip directories, symlinks, etc.).
-            if !entry.file_type().is_file() {
+            let file_type = entry.file_type();
+            let is_symlink = file_type.is_symlink();
+
+            // Only process regular files and symlinks (symlink targets are
+            // checked below so only links to regular files are followed).
+            if !file_type.is_file() && !is_symlink {
                 continue;
             }
 
-            // When glob filters are active, only keep files matching at least
-            // one positive (whitelist) pattern.
+            // When glob filters are active, only keep entries matching at least
+            // one positive (whitelist) pattern. Checking this before resolving
+            // symlinks avoids extra `stat` calls on non-matching links.
             if let Some(patterns) = &patterns
                 && !patterns
                     .matched(
@@ -333,15 +338,39 @@ impl<'a> Walker<'a> {
                 continue;
             }
 
-            match entry.metadata() {
-                Ok(metadata) => {
-                    if self.pass_metadata_filter(metadata)
-                        && let Err(err) = f(entry.path())
+            let metadata = if is_symlink {
+                match entry.path().metadata() {
+                    Ok(metadata) if metadata.is_file() => metadata,
+                    // Skip symlinks pointing to directories or special files
+                    // (FIFOs, sockets, devices).
+                    Ok(_) => continue,
+                    // Report permission errors, but skip dangling, cyclic, or
+                    // otherwise unresolvable symlinks silently.
+                    Err(err)
+                        if err.kind() == io::ErrorKind::PermissionDenied =>
                     {
-                        e(err)?
+                        e(anyhow::Error::new(err).context(format!(
+                            "can't open `{}`",
+                            entry.path().display()
+                        )))?;
+                        continue;
+                    }
+                    Err(_) => continue,
+                }
+            } else {
+                match entry.metadata() {
+                    Ok(metadata) => metadata,
+                    Err(err) => {
+                        e(err.into())?;
+                        continue;
                     }
                 }
-                Err(err) => e(err.into())?,
+            };
+
+            if self.pass_metadata_filter(metadata)
+                && let Err(err) = f(entry.path())
+            {
+                e(err)?;
             }
         }
 

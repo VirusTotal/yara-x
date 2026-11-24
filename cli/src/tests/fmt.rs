@@ -96,3 +96,27 @@ fn fmt_directory() {
         .assert()
         .code(0);
 }
+
+#[cfg(unix)]
+#[test]
+fn fmt_follows_file_symlinks_in_directory() {
+    let temp_dir = TempDir::new().unwrap();
+    let real_file = temp_dir.child("real/rule.yar");
+    real_file.write_str("rule test { condition: true }").unwrap();
+
+    let links_dir = temp_dir.child("links");
+    links_dir.create_dir_all().unwrap();
+    std::os::unix::fs::symlink(
+        real_file.path(),
+        links_dir.child("rule.yar").path(),
+    )
+    .unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("fmt")
+        .arg("--check")
+        .arg(links_dir.path())
+        .assert()
+        .stderr(predicate::str::contains("rule.yar"))
+        .code(1);
+}
