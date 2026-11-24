@@ -334,6 +334,38 @@ rule SolarisELF {
 }
 ```
 
+### SectionFlags
+
+Possible flags in the `flags` field of the `Section` structure.
+
+| Name                 | Value | Description                              |
+|----------------------|-------|------------------------------------------|
+| SHF_WRITE            | 0x001 | Section is writable                      |
+| SHF_ALLOC            | 0x002 | Section is present during execution      |
+| SHF_EXECINSTR        | 0x004 | Section contains executable instructions |
+| SHF_MERGE            | 0x010 | Section might be merged                  |
+| SHF_STRINGS          | 0x020 | Section contains null-terminated strings |
+| SHF_INFO_LINK        | 0x040 | `sh_info` contains SHT index             |
+| SHF_LINK_ORDER       | 0x080 | Preserve order after combining           |
+| SHF_OS_NONCONFORMING | 0x100 | Non-standard OS specific handling        |
+| SHF_GROUP            | 0x200 | Section is member of a group             |
+| SHF_TLS              | 0x400 | Section holds thread-local data          |
+| SHF_COMPRESSED       | 0x800 | Section with compressed data             |
+
+#### Example
+
+```
+import "elf"
+
+rule WritableExecutableSection {
+    condition:
+        for any section in elf.sections : (
+           section.flags & elf.SHF_WRITE != 0 and
+           section.flags & elf.SHF_EXECINSTR != 0
+        )
+}
+```
+
 ### SectionType
 
 Each of the possible values for the `type` field in the `Section`

@@ -2324,6 +2324,38 @@ fn regexp_patterns_6() {
         b"abbbcccc"
     );
 
+    // Fixed-length non-newline jumps running backwards (`JumpExactNoNewline`).
+    pattern_false!(r"/aa.{2}bbbb/", b"XXXXaa\n\nbbbb");
+    pattern_match!(r"/aa.{2}bbbb/", b"\n\nXXaaXYbbbb", b"aaXYbbbb");
+    pattern_false!(r"/aa.{2}cc.{2}dddd/", b"XXXXaa\n\nccXYdddd");
+    pattern_match!(
+        r"/aa.{2}cc.{2}dddd/",
+        b"\n\nXXaaZWccXYdddd",
+        b"aaZWccXYdddd"
+    );
+
+    // Non-newline variable jumps followed/preceded by a literal `\n` must not
+    // cross the first `\n` to match a subsequent `\n`.
+    pattern_false!(r"/abc.{0,4}\nX/", b"abc\n\nX");
+    pattern_false!(r"/abc.{1,4}\nX/", b"abcy\n\nX");
+    pattern_match!(r"/abc.{0,4}\n/", b"abc\n\n", b"abc\n");
+    pattern_match!(r"/abc.{0,4}\nX/", b"abcxy\nX", b"abcxy\nX");
+
+    pattern_false!(r"/X\n.{0,4}abc/", b"X\n\nabc");
+    pattern_false!(r"/X\n.{1,4}abc/", b"X\n\nyabc");
+    pattern_match!(r"/X\n.{0,4}abc/", b"X\nxyabc", b"X\nxyabc");
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /\n.{0,4}abc/
+            condition:
+                #a == 1 and
+                @a[1] == 1 and !a[1] == 4
+        }"#,
+        b"\n\nabc"
+    );
+
     // Trailing jumps reaching end of input or exhausted input.
     pattern_match!(r"/abc.{0,4}/s", b"abcx", b"abcx");
     pattern_match!(r"/abc.{0,4}/s", b"abc", b"abc");
@@ -2677,6 +2709,15 @@ fn regexp_wide() {
         r"/bar.{2,10}foo/ wide",
         b"\xFF\xFFb\x00a\x00r\x00x\x00x\x00f\x00o\x00o\x00\xFF\xFF"
     );
+
+    pattern_false!(r"/aa.{2}bbbb/ wide", b"X\0X\0a\0a\0\n\0\n\0b\0b\0b\0b\0");
+    pattern_match!(
+        r"/aa.{2}bbbb/ wide",
+        b"\n\0\n\0a\0a\0X\0Y\0b\0b\0b\0b\0",
+        b"a\0a\0X\0Y\0b\0b\0b\0b\0"
+    );
+    pattern_false!(r"/abc.{0,4}\nX/ wide", b"a\0b\0c\0\n\0\n\0X\0");
+    pattern_false!(r"/X\n.{0,4}abc/ wide", b"X\0\n\0\n\0a\0b\0c\0");
 
     // Edge jumps in wide mode, including trailing/leading odd bytes.
     pattern_match!(

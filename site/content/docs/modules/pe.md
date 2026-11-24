@@ -677,6 +677,11 @@ Each of the possible values in the `machine` field.
 | MACHINE_SH5         | 424    |
 | MACHINE_THUMB       | 450    |
 | MACHINE_WCEMIPSV2   | 361    |
+| MACHINE_TARGET_HOST | 1      |
+| MACHINE_SH3E        | 420    |
+| MACHINE_TRICORE     | 1312   |
+| MACHINE_CEF         | 3311   |
+| MACHINE_CEE         | 49390  |
 
 #### Example
 

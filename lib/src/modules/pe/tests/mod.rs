@@ -1,5 +1,7 @@
 use pretty_assertions::assert_eq;
+use protobuf::Enum;
 
+use crate::modules::protos::pe::Machine;
 use crate::modules::tests::create_binary_from_zipped_ihex;
 use crate::tests::rule_true;
 use crate::tests::test_rule;
@@ -489,6 +491,78 @@ fn image_directory_constants() {
         "#,
         &[]
     );
+}
+
+#[test]
+fn machines() {
+    rule_true!(
+        r#"import "pe" rule test { condition: not defined pe.machine }"#,
+        &[]
+    );
+
+    let mut pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/c6f9709feccf42f2d9e22057182fe185f177fb9daaa2649b4669a24f2ee7e3ba.in.zip",
+    );
+
+    let machines: &[(&str, u16)] = &[
+        ("MACHINE_UNKNOWN", 0x0000),
+        ("MACHINE_TARGET_HOST", 0x0001),
+        ("MACHINE_I386", 0x014c),
+        ("MACHINE_R3000BE", 0x0160),
+        ("MACHINE_R3000", 0x0162),
+        ("MACHINE_R4000", 0x0166),
+        ("MACHINE_R10000", 0x0168),
+        ("MACHINE_WCEMIPSV2", 0x0169),
+        ("MACHINE_ALPHA", 0x0184),
+        ("MACHINE_SH3", 0x01a2),
+        ("MACHINE_SH3DSP", 0x01a3),
+        ("MACHINE_SH3E", 0x01a4),
+        ("MACHINE_SH4", 0x01a6),
+        ("MACHINE_SH5", 0x01a8),
+        ("MACHINE_ARM", 0x01c0),
+        ("MACHINE_THUMB", 0x01c2),
+        ("MACHINE_ARMNT", 0x01c4),
+        ("MACHINE_AM33", 0x01d3),
+        ("MACHINE_POWERPC", 0x01f0),
+        ("MACHINE_POWERPCFP", 0x01f1),
+        ("MACHINE_IA64", 0x0200),
+        ("MACHINE_MIPS16", 0x0266),
+        ("MACHINE_ALPHA64", 0x0284),
+        ("MACHINE_AXP64", 0x0284),
+        ("MACHINE_MIPSFPU", 0x0366),
+        ("MACHINE_MIPSFPU16", 0x0466),
+        ("MACHINE_TRICORE", 0x0520),
+        ("MACHINE_CEF", 0x0cef),
+        ("MACHINE_EBC", 0x0ebc),
+        ("MACHINE_RISCV32", 0x5032),
+        ("MACHINE_RISCV64", 0x5064),
+        ("MACHINE_RISCV128", 0x5128),
+        ("MACHINE_LOONGARCH32", 0x6232),
+        ("MACHINE_LOONGARCH64", 0x6264),
+        ("MACHINE_AMD64", 0x8664),
+        ("MACHINE_M32R", 0x9041),
+        ("MACHINE_ARM64EC", 0xa641),
+        ("MACHINE_ARM64X", 0xa64e),
+        ("MACHINE_ARM64", 0xaa64),
+        ("MACHINE_CEE", 0xc0ee),
+    ];
+
+    assert_eq!(machines.len(), Machine::VALUES.len());
+
+    // COFF File Header starts 4 bytes after the PE signature at e_lfanew,
+    // and Machine is its first 2-byte little-endian field.
+    let offset =
+        u32::from_le_bytes(pe[0x3c..0x40].try_into().unwrap()) as usize + 4;
+
+    for (name, value) in machines {
+        pe[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
+
+        let rule = format!(
+            r#"import "pe" rule test {{ condition: pe.is_pe and pe.machine == pe.{name} and pe.machine == {value} }}"#
+        );
+
+        rule_true!(rule.as_str(), &pe);
+    }
 }
 
 #[test]

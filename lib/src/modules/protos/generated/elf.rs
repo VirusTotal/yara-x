@@ -2735,6 +2735,126 @@ impl SectionType {
 }
 
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+// @@protoc_insertion_point(enum:elf.SectionFlags)
+pub enum SectionFlags {
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_WRITE)
+    SHF_WRITE = 1,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_ALLOC)
+    SHF_ALLOC = 2,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_EXECINSTR)
+    SHF_EXECINSTR = 4,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_MERGE)
+    SHF_MERGE = 16,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_STRINGS)
+    SHF_STRINGS = 32,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_INFO_LINK)
+    SHF_INFO_LINK = 64,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_LINK_ORDER)
+    SHF_LINK_ORDER = 128,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_OS_NONCONFORMING)
+    SHF_OS_NONCONFORMING = 256,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_GROUP)
+    SHF_GROUP = 512,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_TLS)
+    SHF_TLS = 1024,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_COMPRESSED)
+    SHF_COMPRESSED = 2048,
+}
+
+impl ::protobuf::Enum for SectionFlags {
+    const NAME: &'static str = "SectionFlags";
+
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<SectionFlags> {
+        match value {
+            1 => ::std::option::Option::Some(SectionFlags::SHF_WRITE),
+            2 => ::std::option::Option::Some(SectionFlags::SHF_ALLOC),
+            4 => ::std::option::Option::Some(SectionFlags::SHF_EXECINSTR),
+            16 => ::std::option::Option::Some(SectionFlags::SHF_MERGE),
+            32 => ::std::option::Option::Some(SectionFlags::SHF_STRINGS),
+            64 => ::std::option::Option::Some(SectionFlags::SHF_INFO_LINK),
+            128 => ::std::option::Option::Some(SectionFlags::SHF_LINK_ORDER),
+            256 => ::std::option::Option::Some(SectionFlags::SHF_OS_NONCONFORMING),
+            512 => ::std::option::Option::Some(SectionFlags::SHF_GROUP),
+            1024 => ::std::option::Option::Some(SectionFlags::SHF_TLS),
+            2048 => ::std::option::Option::Some(SectionFlags::SHF_COMPRESSED),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn from_str(str: &str) -> ::std::option::Option<SectionFlags> {
+        match str {
+            "SHF_WRITE" => ::std::option::Option::Some(SectionFlags::SHF_WRITE),
+            "SHF_ALLOC" => ::std::option::Option::Some(SectionFlags::SHF_ALLOC),
+            "SHF_EXECINSTR" => ::std::option::Option::Some(SectionFlags::SHF_EXECINSTR),
+            "SHF_MERGE" => ::std::option::Option::Some(SectionFlags::SHF_MERGE),
+            "SHF_STRINGS" => ::std::option::Option::Some(SectionFlags::SHF_STRINGS),
+            "SHF_INFO_LINK" => ::std::option::Option::Some(SectionFlags::SHF_INFO_LINK),
+            "SHF_LINK_ORDER" => ::std::option::Option::Some(SectionFlags::SHF_LINK_ORDER),
+            "SHF_OS_NONCONFORMING" => ::std::option::Option::Some(SectionFlags::SHF_OS_NONCONFORMING),
+            "SHF_GROUP" => ::std::option::Option::Some(SectionFlags::SHF_GROUP),
+            "SHF_TLS" => ::std::option::Option::Some(SectionFlags::SHF_TLS),
+            "SHF_COMPRESSED" => ::std::option::Option::Some(SectionFlags::SHF_COMPRESSED),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    const VALUES: &'static [SectionFlags] = &[
+        SectionFlags::SHF_WRITE,
+        SectionFlags::SHF_ALLOC,
+        SectionFlags::SHF_EXECINSTR,
+        SectionFlags::SHF_MERGE,
+        SectionFlags::SHF_STRINGS,
+        SectionFlags::SHF_INFO_LINK,
+        SectionFlags::SHF_LINK_ORDER,
+        SectionFlags::SHF_OS_NONCONFORMING,
+        SectionFlags::SHF_GROUP,
+        SectionFlags::SHF_TLS,
+        SectionFlags::SHF_COMPRESSED,
+    ];
+}
+
+impl ::protobuf::EnumFull for SectionFlags {
+    fn enum_descriptor() -> ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().enum_by_package_relative_name("SectionFlags").unwrap()).clone()
+    }
+
+    fn descriptor(&self) -> ::protobuf::reflect::EnumValueDescriptor {
+        let index = match self {
+            SectionFlags::SHF_WRITE => 0,
+            SectionFlags::SHF_ALLOC => 1,
+            SectionFlags::SHF_EXECINSTR => 2,
+            SectionFlags::SHF_MERGE => 3,
+            SectionFlags::SHF_STRINGS => 4,
+            SectionFlags::SHF_INFO_LINK => 5,
+            SectionFlags::SHF_LINK_ORDER => 6,
+            SectionFlags::SHF_OS_NONCONFORMING => 7,
+            SectionFlags::SHF_GROUP => 8,
+            SectionFlags::SHF_TLS => 9,
+            SectionFlags::SHF_COMPRESSED => 10,
+        };
+        Self::enum_descriptor().value_by_index(index)
+    }
+}
+
+// Note, `Default` is implemented although default value is not 0
+impl ::std::default::Default for SectionFlags {
+    fn default() -> Self {
+        SectionFlags::SHF_WRITE
+    }
+}
+
+impl SectionFlags {
+    fn generated_enum_descriptor_data() -> ::protobuf::reflect::GeneratedEnumDescriptorData {
+        ::protobuf::reflect::GeneratedEnumDescriptorData::new::<SectionFlags>("SectionFlags")
+    }
+}
+
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
 // @@protoc_insertion_point(enum:elf.SegmentType)
 pub enum SegmentType {
     // @@protoc_insertion_point(enum_value:elf.SegmentType.PT_NULL)
@@ -3519,102 +3639,109 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     s\x12(\n\x08segments\x18\x0e\x20\x03(\x0b2\x0c.elf.SegmentR\x08segments\
     \x12\x20\n\x06symtab\x18\x0f\x20\x03(\x0b2\x08.elf.SymR\x06symtab\x12\
     \x20\n\x06dynsym\x18\x10\x20\x03(\x0b2\x08.elf.SymR\x06dynsym\x12\"\n\
-    \x07dynamic\x18\x11\x20\x03(\x0b2\x08.elf.DynR\x07dynamic\"\x9f\x01\n\
+    \x07dynamic\x18\x11\x20\x03(\x0b2\x08.elf.DynR\x07dynamic\"\xb9\x01\n\
     \x07Section\x12$\n\x04type\x18\x01\x20\x02(\x0e2\x10.elf.SectionTypeR\
-    \x04type\x12\x14\n\x05flags\x18\x02\x20\x02(\x03R\x05flags\x12\x18\n\x07\
-    address\x18\x03\x20\x02(\x03R\x07address\x12\x12\n\x04size\x18\x04\x20\
-    \x02(\x03R\x04size\x12\x16\n\x06offset\x18\x05\x20\x02(\x03R\x06offset\
-    \x12\x12\n\x04name\x18\x06\x20\x01(\tR\x04name\"\xa7\x02\n\x07Segment\
-    \x12$\n\x04type\x18\x01\x20\x02(\x0e2\x10.elf.SegmentTypeR\x04type\x12.\
-    \n\x05flags\x18\x02\x20\x02(\rR\x05flagsB\x18\x82\x93\x19\x14*\x12flags:\
-    SegmentFlags\x12\x16\n\x06offset\x18\x03\x20\x02(\x03R\x06offset\x12'\n\
-    \x0fvirtual_address\x18\x04\x20\x02(\x03R\x0evirtualAddress\x12)\n\x10ph\
-    ysical_address\x18\x05\x20\x02(\x03R\x0fphysicalAddress\x12\x1b\n\tfile_\
-    size\x18\x06\x20\x02(\x03R\x08fileSize\x12\x1f\n\x0bmemory_size\x18\x07\
-    \x20\x02(\x03R\nmemorySize\x12\x1c\n\talignment\x18\x08\x20\x02(\x03R\ta\
-    lignment\"\xd1\x01\n\x03Sym\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04nam\
-    e\x12\x14\n\x05value\x18\x02\x20\x02(\x03R\x05value\x12\x12\n\x04size\
-    \x18\x03\x20\x02(\x03R\x04size\x12\x20\n\x04type\x18\x04\x20\x02(\x0e2\
-    \x0c.elf.SymTypeR\x04type\x12\x20\n\x04bind\x18\x05\x20\x02(\x0e2\x0c.el\
-    f.SymBindR\x04bind\x12\x14\n\x05shndx\x18\x06\x20\x02(\rR\x05shndx\x122\
-    \n\nvisibility\x18\x07\x20\x02(\x0e2\x12.elf.SymVisibilityR\nvisibility\
-    \"9\n\x03Dyn\x12\x20\n\x04type\x18\x01\x20\x01(\x0e2\x0c.elf.DynTypeR\
-    \x04type\x12\x10\n\x03val\x18\x02\x20\x01(\x03R\x03val*n\n\x04Type\x12\
-    \x0b\n\x07ET_NONE\x10\0\x12\n\n\x06ET_REL\x10\x01\x12\x0b\n\x07ET_EXEC\
-    \x10\x02\x12\n\n\x06ET_DYN\x10\x03\x12\x0b\n\x07ET_CORE\x10\x04\x12\x0f\
-    \n\tET_LOPROC\x10\x80\xfe\x03\x12\x0e\n\tET_HIPROC\x10\xff\x01\x1a\x06\
-    \x92\x93\x19\x02\x10\x01*\x8d\x03\n\x07Machine\x12\x0b\n\x07EM_NONE\x10\
-    \0\x12\n\n\x06EM_M32\x10\x01\x12\x0c\n\x08EM_SPARC\x10\x02\x12\n\n\x06EM\
-    _386\x10\x03\x12\n\n\x06EM_68K\x10\x04\x12\n\n\x06EM_88K\x10\x05\x12\x0c\
-    \n\x08EM_IAMCU\x10\x06\x12\n\n\x06EM_860\x10\x07\x12\x0b\n\x07EM_MIPS\
-    \x10\x08\x12\x0b\n\x07EM_S370\x10\t\x12\x12\n\x0eEM_MIPS_RS3_LE\x10\n\
-    \x12\r\n\tEM_PARISC\x10\x0f\x12\x12\n\x0eEM_SPARC32PLUS\x10\x12\x12\n\n\
-    \x06EM_PPC\x10\x14\x12\x0c\n\x08EM_PPC64\x10\x15\x12\x0b\n\x07EM_S390\
-    \x10\x16\x12\x0c\n\x08EM_MCORE\x10'\x12\x14\n\x06EM_RCE\x10\xa7\x80\x04\
-    \x1a\x06\x9a\x93\x19\x02\x08'\x12\n\n\x06EM_ARM\x10(\x12\t\n\x05EM_SH\
-    \x10*\x12\x0e\n\nEM_SPARCV9\x10+\x12\r\n\tEM_X86_64\x10>\x12\x12\n\x0eEM\
-    _ARC_COMPACT\x10]\x12\x0f\n\nEM_AARCH64\x10\xb7\x01\x12\x0b\n\x06EM_BPF\
-    \x10\xf7\x01\x12\x11\n\x0cEM_LOONGARCH\x10\x82\x02\x1a\x06\x92\x93\x19\
-    \x02\x10\x01*\x8a\x03\n\x05OsAbi\x12\x0e\n\nOSABI_NONE\x10\0\x12\x0e\n\n\
-    OSABI_HPUX\x10\x01\x12\x10\n\x0cOSABI_NETBSD\x10\x02\x12\x0f\n\x0bOSABI_\
-    LINUX\x10\x03\x12\x12\n\x0eOSABI_GNU_HURD\x10\x04\x12\x11\n\rOSABI_SOLAR\
-    IS\x10\x06\x12\r\n\tOSABI_AIX\x10\x07\x12\x0e\n\nOSABI_IRIX\x10\x08\x12\
-    \x12\n\x0eOSABI_FREE_BSD\x10\t\x12\x0f\n\x0bOSABI_TRU64\x10\n\x12\x11\n\
-    \rOSABI_MODESTO\x10\x0b\x12\x11\n\rOSABI_OPENBSD\x10\x0c\x12\x11\n\rOSAB\
-    I_OPENVMS\x10\r\x12\r\n\tOSABI_NSK\x10\x0e\x12\x0e\n\nOSABI_AROS\x10\x0f\
-    \x12\x11\n\rOSABI_FENIXOS\x10\x10\x12\x12\n\x0eOSABI_CLOUDABI\x10\x11\
-    \x12\x11\n\rOSABI_OPENVOS\x10\x12\x12\x13\n\x0fOSABI_ARM_AEABI\x10@\x12\
-    \r\n\tOSABI_ARM\x10a\x12\x15\n\x10OSABI_STANDALONE\x10\xff\x01\x1a\x06\
-    \x92\x93\x19\x02\x10\x01*\xf4\x01\n\x0bSectionType\x12\x0c\n\x08SHT_NULL\
-    \x10\0\x12\x10\n\x0cSHT_PROGBITS\x10\x01\x12\x0e\n\nSHT_SYMTAB\x10\x02\
-    \x12\x0e\n\nSHT_STRTAB\x10\x03\x12\x0c\n\x08SHT_RELA\x10\x04\x12\x0c\n\
-    \x08SHT_HASH\x10\x05\x12\x0f\n\x0bSHT_DYNAMIC\x10\x06\x12\x0c\n\x08SHT_N\
-    OTE\x10\x07\x12\x0e\n\nSHT_NOBITS\x10\x08\x12\x0b\n\x07SHT_REL\x10\t\x12\
-    \r\n\tSHT_SHLIB\x10\n\x12\x0e\n\nSHT_DYNSYM\x10\x0b\x12\x12\n\x0eSHT_INI\
-    T_ARRAY\x10\x0e\x12\x12\n\x0eSHT_FINI_ARRAY\x10\x0f\x1a\x06\x92\x93\x19\
-    \x02\x10\x01*\xe0\x01\n\x0bSegmentType\x12\x0b\n\x07PT_NULL\x10\0\x12\
-    \x0b\n\x07PT_LOAD\x10\x01\x12\x0e\n\nPT_DYNAMIC\x10\x02\x12\r\n\tPT_INTE\
-    RP\x10\x03\x12\x0b\n\x07PT_NOTE\x10\x04\x12\x0c\n\x08PT_SHLIB\x10\x05\
-    \x12\x0b\n\x07PT_PHDR\x10\x06\x12\n\n\x06PT_TLS\x10\x07\x12\x17\n\x0fPT_\
-    GNU_EH_FRAME\x10\xd0\xca\xd3\xa3\x06\x12\x14\n\x0cPT_GNU_STACK\x10\xd1\
-    \xca\xd3\xa3\x06\x12\x14\n\x0cPT_GNU_RELRO\x10\xd2\xca\xd3\xa3\x06\x12\
-    \x17\n\x0fPT_GNU_PROPERTY\x10\xd3\xca\xd3\xa3\x06\x1a\x06\x92\x93\x19\
-    \x02\x10\x01*4\n\x0cSegmentFlags\x12\x08\n\x04PF_X\x10\x01\x12\x08\n\x04\
-    PF_W\x10\x02\x12\x08\n\x04PF_R\x10\x04\x1a\x06\x92\x93\x19\x02\x10\x01*{\
-    \n\x07SymType\x12\x0e\n\nSTT_NOTYPE\x10\0\x12\x0e\n\nSTT_OBJECT\x10\x01\
-    \x12\x0c\n\x08STT_FUNC\x10\x02\x12\x0f\n\x0bSTT_SECTION\x10\x03\x12\x0c\
-    \n\x08STT_FILE\x10\x04\x12\x0e\n\nSTT_COMMON\x10\x05\x12\x0b\n\x07STT_TL\
-    S\x10\x06\x1a\x06\x92\x93\x19\x02\x10\x01*>\n\x07SymBind\x12\r\n\tSTB_LO\
-    CAL\x10\0\x12\x0e\n\nSTB_GLOBAL\x10\x01\x12\x0c\n\x08STB_WEAK\x10\x02\
-    \x1a\x06\x92\x93\x19\x02\x10\x01*]\n\rSymVisibility\x12\x0f\n\x0bSTV_DEF\
-    AULT\x10\0\x12\x10\n\x0cSTV_INTERNAL\x10\x01\x12\x0e\n\nSTV_HIDDEN\x10\
-    \x02\x12\x11\n\rSTV_PROTECTED\x10\x03\x1a\x06\x92\x93\x19\x02\x10\x01*\
-    \xc2\x06\n\x07DynType\x12\x0b\n\x07DT_NULL\x10\0\x12\r\n\tDT_NEEDED\x10\
-    \x01\x12\x0f\n\x0bDT_PLTRELSZ\x10\x02\x12\r\n\tDT_PLTGOT\x10\x03\x12\x0b\
-    \n\x07DT_HASH\x10\x04\x12\r\n\tDT_STRTAB\x10\x05\x12\r\n\tDT_SYMTAB\x10\
-    \x06\x12\x0b\n\x07DT_RELA\x10\x07\x12\r\n\tDT_RELASZ\x10\x08\x12\x0e\n\n\
-    DT_RELAENT\x10\t\x12\x0c\n\x08DT_STRSZ\x10\n\x12\r\n\tDT_SYMENT\x10\x0b\
-    \x12\x0b\n\x07DT_INIT\x10\x0c\x12\x0b\n\x07DT_FINI\x10\r\x12\r\n\tDT_SON\
-    AME\x10\x0e\x12\x0c\n\x08DT_RPATH\x10\x0f\x12\x0f\n\x0bDT_SYMBOLIC\x10\
-    \x10\x12\n\n\x06DT_REL\x10\x11\x12\x0c\n\x08DT_RELSZ\x10\x12\x12\r\n\tDT\
-    _RELENT\x10\x13\x12\r\n\tDT_PLTREL\x10\x14\x12\x0c\n\x08DT_DEBUG\x10\x15\
-    \x12\x0e\n\nDT_TEXTREL\x10\x16\x12\r\n\tDT_JMPREL\x10\x17\x12\x0f\n\x0bD\
-    T_BIND_NOW\x10\x18\x12\x11\n\rDT_INIT_ARRAY\x10\x19\x12\x11\n\rDT_FINI_A\
-    RRAY\x10\x1a\x12\x13\n\x0fDT_INIT_ARRAYSZ\x10\x1b\x12\x13\n\x0fDT_FINI_A\
-    RRAYSZ\x10\x1c\x12\x0e\n\nDT_RUNPATH\x10\x1d\x12\x0c\n\x08DT_FLAGS\x10\
-    \x1e\x12\x0f\n\x0bDT_ENCODING\x10\x20\x12\x0f\n\x07DT_LOOS\x10\x8d\x80\
-    \x80\x80\x06\x12\x0f\n\x07DT_HIOS\x10\x80\xe0\xff\xff\x06\x12\x13\n\x0bD\
-    T_VALRNGLO\x10\x80\xfa\xff\xff\x06\x12\x13\n\x0bDT_VALRNGHI\x10\xff\xfb\
-    \xff\xff\x06\x12\x14\n\x0cDT_ADDRRNGLO\x10\x80\xfc\xff\xff\x06\x12\x14\n\
-    \x0cDT_ADDRRNGHI\x10\xff\xfd\xff\xff\x06\x12\x11\n\tDT_VERSYM\x10\xf0\
-    \xff\xff\xff\x06\x12\x14\n\x0cDT_RELACOUNT\x10\xf9\xff\xff\xff\x06\x12\
-    \x13\n\x0bDT_RELCOUNT\x10\xfa\xff\xff\xff\x06\x12\x12\n\nDT_FLAGS_1\x10\
-    \xfb\xff\xff\xff\x06\x12\x11\n\tDT_VERDEF\x10\xfc\xff\xff\xff\x06\x12\
-    \x14\n\x0cDT_VERDEFNUM\x10\xfd\xff\xff\xff\x06\x12\x12\n\nDT_VERNEED\x10\
-    \xfe\xff\xff\xff\x06\x12\x15\n\rDT_VERNEEDNUM\x10\xff\xff\xff\xff\x06\
-    \x12\x11\n\tDT_LOPROC\x10\x80\x80\x80\x80\x07\x12\x11\n\tDT_HIPROC\x10\
-    \xff\xff\xff\xff\x07\x1a\x06\x92\x93\x19\x02\x10\x01B\x1e\xfa\x92\x19\
-    \x1a\n\x03elf\x12\x07elf.ELF\x1a\nelf-moduleb\x06proto2\
+    \x04type\x12.\n\x05flags\x18\x02\x20\x02(\x03R\x05flagsB\x18\x82\x93\x19\
+    \x14*\x12flags:SectionFlags\x12\x18\n\x07address\x18\x03\x20\x02(\x03R\
+    \x07address\x12\x12\n\x04size\x18\x04\x20\x02(\x03R\x04size\x12\x16\n\
+    \x06offset\x18\x05\x20\x02(\x03R\x06offset\x12\x12\n\x04name\x18\x06\x20\
+    \x01(\tR\x04name\"\xa7\x02\n\x07Segment\x12$\n\x04type\x18\x01\x20\x02(\
+    \x0e2\x10.elf.SegmentTypeR\x04type\x12.\n\x05flags\x18\x02\x20\x02(\rR\
+    \x05flagsB\x18\x82\x93\x19\x14*\x12flags:SegmentFlags\x12\x16\n\x06offse\
+    t\x18\x03\x20\x02(\x03R\x06offset\x12'\n\x0fvirtual_address\x18\x04\x20\
+    \x02(\x03R\x0evirtualAddress\x12)\n\x10physical_address\x18\x05\x20\x02(\
+    \x03R\x0fphysicalAddress\x12\x1b\n\tfile_size\x18\x06\x20\x02(\x03R\x08f\
+    ileSize\x12\x1f\n\x0bmemory_size\x18\x07\x20\x02(\x03R\nmemorySize\x12\
+    \x1c\n\talignment\x18\x08\x20\x02(\x03R\talignment\"\xd1\x01\n\x03Sym\
+    \x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\x12\x14\n\x05value\x18\
+    \x02\x20\x02(\x03R\x05value\x12\x12\n\x04size\x18\x03\x20\x02(\x03R\x04s\
+    ize\x12\x20\n\x04type\x18\x04\x20\x02(\x0e2\x0c.elf.SymTypeR\x04type\x12\
+    \x20\n\x04bind\x18\x05\x20\x02(\x0e2\x0c.elf.SymBindR\x04bind\x12\x14\n\
+    \x05shndx\x18\x06\x20\x02(\rR\x05shndx\x122\n\nvisibility\x18\x07\x20\
+    \x02(\x0e2\x12.elf.SymVisibilityR\nvisibility\"9\n\x03Dyn\x12\x20\n\x04t\
+    ype\x18\x01\x20\x01(\x0e2\x0c.elf.DynTypeR\x04type\x12\x10\n\x03val\x18\
+    \x02\x20\x01(\x03R\x03val*n\n\x04Type\x12\x0b\n\x07ET_NONE\x10\0\x12\n\n\
+    \x06ET_REL\x10\x01\x12\x0b\n\x07ET_EXEC\x10\x02\x12\n\n\x06ET_DYN\x10\
+    \x03\x12\x0b\n\x07ET_CORE\x10\x04\x12\x0f\n\tET_LOPROC\x10\x80\xfe\x03\
+    \x12\x0e\n\tET_HIPROC\x10\xff\x01\x1a\x06\x92\x93\x19\x02\x10\x01*\x8d\
+    \x03\n\x07Machine\x12\x0b\n\x07EM_NONE\x10\0\x12\n\n\x06EM_M32\x10\x01\
+    \x12\x0c\n\x08EM_SPARC\x10\x02\x12\n\n\x06EM_386\x10\x03\x12\n\n\x06EM_6\
+    8K\x10\x04\x12\n\n\x06EM_88K\x10\x05\x12\x0c\n\x08EM_IAMCU\x10\x06\x12\n\
+    \n\x06EM_860\x10\x07\x12\x0b\n\x07EM_MIPS\x10\x08\x12\x0b\n\x07EM_S370\
+    \x10\t\x12\x12\n\x0eEM_MIPS_RS3_LE\x10\n\x12\r\n\tEM_PARISC\x10\x0f\x12\
+    \x12\n\x0eEM_SPARC32PLUS\x10\x12\x12\n\n\x06EM_PPC\x10\x14\x12\x0c\n\x08\
+    EM_PPC64\x10\x15\x12\x0b\n\x07EM_S390\x10\x16\x12\x0c\n\x08EM_MCORE\x10'\
+    \x12\x14\n\x06EM_RCE\x10\xa7\x80\x04\x1a\x06\x9a\x93\x19\x02\x08'\x12\n\
+    \n\x06EM_ARM\x10(\x12\t\n\x05EM_SH\x10*\x12\x0e\n\nEM_SPARCV9\x10+\x12\r\
+    \n\tEM_X86_64\x10>\x12\x12\n\x0eEM_ARC_COMPACT\x10]\x12\x0f\n\nEM_AARCH6\
+    4\x10\xb7\x01\x12\x0b\n\x06EM_BPF\x10\xf7\x01\x12\x11\n\x0cEM_LOONGARCH\
+    \x10\x82\x02\x1a\x06\x92\x93\x19\x02\x10\x01*\x8a\x03\n\x05OsAbi\x12\x0e\
+    \n\nOSABI_NONE\x10\0\x12\x0e\n\nOSABI_HPUX\x10\x01\x12\x10\n\x0cOSABI_NE\
+    TBSD\x10\x02\x12\x0f\n\x0bOSABI_LINUX\x10\x03\x12\x12\n\x0eOSABI_GNU_HUR\
+    D\x10\x04\x12\x11\n\rOSABI_SOLARIS\x10\x06\x12\r\n\tOSABI_AIX\x10\x07\
+    \x12\x0e\n\nOSABI_IRIX\x10\x08\x12\x12\n\x0eOSABI_FREE_BSD\x10\t\x12\x0f\
+    \n\x0bOSABI_TRU64\x10\n\x12\x11\n\rOSABI_MODESTO\x10\x0b\x12\x11\n\rOSAB\
+    I_OPENBSD\x10\x0c\x12\x11\n\rOSABI_OPENVMS\x10\r\x12\r\n\tOSABI_NSK\x10\
+    \x0e\x12\x0e\n\nOSABI_AROS\x10\x0f\x12\x11\n\rOSABI_FENIXOS\x10\x10\x12\
+    \x12\n\x0eOSABI_CLOUDABI\x10\x11\x12\x11\n\rOSABI_OPENVOS\x10\x12\x12\
+    \x13\n\x0fOSABI_ARM_AEABI\x10@\x12\r\n\tOSABI_ARM\x10a\x12\x15\n\x10OSAB\
+    I_STANDALONE\x10\xff\x01\x1a\x06\x92\x93\x19\x02\x10\x01*\xf4\x01\n\x0bS\
+    ectionType\x12\x0c\n\x08SHT_NULL\x10\0\x12\x10\n\x0cSHT_PROGBITS\x10\x01\
+    \x12\x0e\n\nSHT_SYMTAB\x10\x02\x12\x0e\n\nSHT_STRTAB\x10\x03\x12\x0c\n\
+    \x08SHT_RELA\x10\x04\x12\x0c\n\x08SHT_HASH\x10\x05\x12\x0f\n\x0bSHT_DYNA\
+    MIC\x10\x06\x12\x0c\n\x08SHT_NOTE\x10\x07\x12\x0e\n\nSHT_NOBITS\x10\x08\
+    \x12\x0b\n\x07SHT_REL\x10\t\x12\r\n\tSHT_SHLIB\x10\n\x12\x0e\n\nSHT_DYNS\
+    YM\x10\x0b\x12\x12\n\x0eSHT_INIT_ARRAY\x10\x0e\x12\x12\n\x0eSHT_FINI_ARR\
+    AY\x10\x0f\x1a\x06\x92\x93\x19\x02\x10\x01*\xdd\x01\n\x0cSectionFlags\
+    \x12\r\n\tSHF_WRITE\x10\x01\x12\r\n\tSHF_ALLOC\x10\x02\x12\x11\n\rSHF_EX\
+    ECINSTR\x10\x04\x12\r\n\tSHF_MERGE\x10\x10\x12\x0f\n\x0bSHF_STRINGS\x10\
+    \x20\x12\x11\n\rSHF_INFO_LINK\x10@\x12\x13\n\x0eSHF_LINK_ORDER\x10\x80\
+    \x01\x12\x19\n\x14SHF_OS_NONCONFORMING\x10\x80\x02\x12\x0e\n\tSHF_GROUP\
+    \x10\x80\x04\x12\x0c\n\x07SHF_TLS\x10\x80\x08\x12\x13\n\x0eSHF_COMPRESSE\
+    D\x10\x80\x10\x1a\x06\x92\x93\x19\x02\x10\x01*\xe0\x01\n\x0bSegmentType\
+    \x12\x0b\n\x07PT_NULL\x10\0\x12\x0b\n\x07PT_LOAD\x10\x01\x12\x0e\n\nPT_D\
+    YNAMIC\x10\x02\x12\r\n\tPT_INTERP\x10\x03\x12\x0b\n\x07PT_NOTE\x10\x04\
+    \x12\x0c\n\x08PT_SHLIB\x10\x05\x12\x0b\n\x07PT_PHDR\x10\x06\x12\n\n\x06P\
+    T_TLS\x10\x07\x12\x17\n\x0fPT_GNU_EH_FRAME\x10\xd0\xca\xd3\xa3\x06\x12\
+    \x14\n\x0cPT_GNU_STACK\x10\xd1\xca\xd3\xa3\x06\x12\x14\n\x0cPT_GNU_RELRO\
+    \x10\xd2\xca\xd3\xa3\x06\x12\x17\n\x0fPT_GNU_PROPERTY\x10\xd3\xca\xd3\
+    \xa3\x06\x1a\x06\x92\x93\x19\x02\x10\x01*4\n\x0cSegmentFlags\x12\x08\n\
+    \x04PF_X\x10\x01\x12\x08\n\x04PF_W\x10\x02\x12\x08\n\x04PF_R\x10\x04\x1a\
+    \x06\x92\x93\x19\x02\x10\x01*{\n\x07SymType\x12\x0e\n\nSTT_NOTYPE\x10\0\
+    \x12\x0e\n\nSTT_OBJECT\x10\x01\x12\x0c\n\x08STT_FUNC\x10\x02\x12\x0f\n\
+    \x0bSTT_SECTION\x10\x03\x12\x0c\n\x08STT_FILE\x10\x04\x12\x0e\n\nSTT_COM\
+    MON\x10\x05\x12\x0b\n\x07STT_TLS\x10\x06\x1a\x06\x92\x93\x19\x02\x10\x01\
+    *>\n\x07SymBind\x12\r\n\tSTB_LOCAL\x10\0\x12\x0e\n\nSTB_GLOBAL\x10\x01\
+    \x12\x0c\n\x08STB_WEAK\x10\x02\x1a\x06\x92\x93\x19\x02\x10\x01*]\n\rSymV\
+    isibility\x12\x0f\n\x0bSTV_DEFAULT\x10\0\x12\x10\n\x0cSTV_INTERNAL\x10\
+    \x01\x12\x0e\n\nSTV_HIDDEN\x10\x02\x12\x11\n\rSTV_PROTECTED\x10\x03\x1a\
+    \x06\x92\x93\x19\x02\x10\x01*\xc2\x06\n\x07DynType\x12\x0b\n\x07DT_NULL\
+    \x10\0\x12\r\n\tDT_NEEDED\x10\x01\x12\x0f\n\x0bDT_PLTRELSZ\x10\x02\x12\r\
+    \n\tDT_PLTGOT\x10\x03\x12\x0b\n\x07DT_HASH\x10\x04\x12\r\n\tDT_STRTAB\
+    \x10\x05\x12\r\n\tDT_SYMTAB\x10\x06\x12\x0b\n\x07DT_RELA\x10\x07\x12\r\n\
+    \tDT_RELASZ\x10\x08\x12\x0e\n\nDT_RELAENT\x10\t\x12\x0c\n\x08DT_STRSZ\
+    \x10\n\x12\r\n\tDT_SYMENT\x10\x0b\x12\x0b\n\x07DT_INIT\x10\x0c\x12\x0b\n\
+    \x07DT_FINI\x10\r\x12\r\n\tDT_SONAME\x10\x0e\x12\x0c\n\x08DT_RPATH\x10\
+    \x0f\x12\x0f\n\x0bDT_SYMBOLIC\x10\x10\x12\n\n\x06DT_REL\x10\x11\x12\x0c\
+    \n\x08DT_RELSZ\x10\x12\x12\r\n\tDT_RELENT\x10\x13\x12\r\n\tDT_PLTREL\x10\
+    \x14\x12\x0c\n\x08DT_DEBUG\x10\x15\x12\x0e\n\nDT_TEXTREL\x10\x16\x12\r\n\
+    \tDT_JMPREL\x10\x17\x12\x0f\n\x0bDT_BIND_NOW\x10\x18\x12\x11\n\rDT_INIT_\
+    ARRAY\x10\x19\x12\x11\n\rDT_FINI_ARRAY\x10\x1a\x12\x13\n\x0fDT_INIT_ARRA\
+    YSZ\x10\x1b\x12\x13\n\x0fDT_FINI_ARRAYSZ\x10\x1c\x12\x0e\n\nDT_RUNPATH\
+    \x10\x1d\x12\x0c\n\x08DT_FLAGS\x10\x1e\x12\x0f\n\x0bDT_ENCODING\x10\x20\
+    \x12\x0f\n\x07DT_LOOS\x10\x8d\x80\x80\x80\x06\x12\x0f\n\x07DT_HIOS\x10\
+    \x80\xe0\xff\xff\x06\x12\x13\n\x0bDT_VALRNGLO\x10\x80\xfa\xff\xff\x06\
+    \x12\x13\n\x0bDT_VALRNGHI\x10\xff\xfb\xff\xff\x06\x12\x14\n\x0cDT_ADDRRN\
+    GLO\x10\x80\xfc\xff\xff\x06\x12\x14\n\x0cDT_ADDRRNGHI\x10\xff\xfd\xff\
+    \xff\x06\x12\x11\n\tDT_VERSYM\x10\xf0\xff\xff\xff\x06\x12\x14\n\x0cDT_RE\
+    LACOUNT\x10\xf9\xff\xff\xff\x06\x12\x13\n\x0bDT_RELCOUNT\x10\xfa\xff\xff\
+    \xff\x06\x12\x12\n\nDT_FLAGS_1\x10\xfb\xff\xff\xff\x06\x12\x11\n\tDT_VER\
+    DEF\x10\xfc\xff\xff\xff\x06\x12\x14\n\x0cDT_VERDEFNUM\x10\xfd\xff\xff\
+    \xff\x06\x12\x12\n\nDT_VERNEED\x10\xfe\xff\xff\xff\x06\x12\x15\n\rDT_VER\
+    NEEDNUM\x10\xff\xff\xff\xff\x06\x12\x11\n\tDT_LOPROC\x10\x80\x80\x80\x80\
+    \x07\x12\x11\n\tDT_HIPROC\x10\xff\xff\xff\xff\x07\x1a\x06\x92\x93\x19\
+    \x02\x10\x01B\x1e\xfa\x92\x19\x1a\n\x03elf\x12\x07elf.ELF\x1a\nelf-modul\
+    eb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -3639,11 +3766,12 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             messages.push(Segment::generated_message_descriptor_data());
             messages.push(Sym::generated_message_descriptor_data());
             messages.push(Dyn::generated_message_descriptor_data());
-            let mut enums = ::std::vec::Vec::with_capacity(10);
+            let mut enums = ::std::vec::Vec::with_capacity(11);
             enums.push(Type::generated_enum_descriptor_data());
             enums.push(Machine::generated_enum_descriptor_data());
             enums.push(OsAbi::generated_enum_descriptor_data());
             enums.push(SectionType::generated_enum_descriptor_data());
+            enums.push(SectionFlags::generated_enum_descriptor_data());
             enums.push(SegmentType::generated_enum_descriptor_data());
             enums.push(SegmentFlags::generated_enum_descriptor_data());
             enums.push(SymType::generated_enum_descriptor_data());

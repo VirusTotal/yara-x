@@ -13,145 +13,145 @@ dynsym_entries: 109
 dynamic_section_entries: 19
 sections:
   - type: SHT_NULL
-    flags: 0
+    flags: 0x0
     address: 0
     size: 0
     offset: 0
     name: ""
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 65748
     size: 17
     offset: 212
     name: ".interp"
   - type: SHT_HASH
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 65768
     size: 832
     offset: 232
     name: ".hash"
   - type: SHT_DYNSYM
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 66600
     size: 1744
     offset: 1064
     name: ".dynsym"
   - type: SHT_STRTAB
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 68344
     size: 1054
     offset: 2808
     name: ".dynstr"
   - type: 1879048190
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 69400
     size: 64
     offset: 3864
     name: ".SUNW_version"
   - type: SHT_RELA
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 69464
     size: 24
     offset: 3928
     name: ".rela.ex_shared"
   - type: SHT_RELA
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 69488
     size: 36
     offset: 3952
     name: ".rela.bss"
   - type: SHT_RELA
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 69524
     size: 360
     offset: 3988
     name: ".rela.plt"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 69884
     size: 6900
     offset: 4348
     name: ".text"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 76784
     size: 56
     offset: 11248
     name: ".init"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 76840
     size: 56
     offset: 11304
     name: ".fini"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 76896
     size: 4
     offset: 11360
     name: ".exception_ranges"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 76900
     size: 4
     offset: 11364
     name: ".rodata"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 76904
     size: 529
     offset: 11368
     name: ".rodata1"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 142972
     size: 4
     offset: 11900
     name: ".got"
   - type: SHT_DYNAMIC
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 142976
     size: 160
     offset: 11904
     name: ".dynamic"
   - type: SHT_PROGBITS
-    flags: 7
+    flags: 0x7  # SHF_WRITE | SHF_ALLOC | SHF_EXECINSTR
     address: 143136
     size: 412
     offset: 12064
     name: ".plt"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 143548
     size: 32
     offset: 12476
     name: ".ex_shared"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 143580
     size: 84
     offset: 12508
     name: ".data"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 143664
     size: 109
     offset: 12592
     name: ".data1"
   - type: SHT_NOBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 143776
     size: 3064
     offset: 12704
     name: ".bss"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 124
     offset: 12701
     name: ".comment"
   - type: SHT_STRTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 201
     offset: 12825

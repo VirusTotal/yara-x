@@ -13,121 +13,121 @@ dynsym_entries: 39
 dynamic_section_entries: 18
 sections:
   - type: SHT_NULL
-    flags: 0
+    flags: 0x0
     address: 0
     size: 0
     offset: 0
     name: ""
   - type: SHT_NOTE
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 568
     size: 36
     offset: 568
     name: ".note.gnu.build-id"
   - type: SHT_HASH
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 608
     size: 312
     offset: 608
     name: ".hash"
   - type: 1879048182
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 920
     size: 348
     offset: 920
     name: ".gnu.hash"
   - type: SHT_DYNSYM
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 1272
     size: 936
     offset: 1272
     name: ".dynsym"
   - type: SHT_STRTAB
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 2208
     size: 689
     offset: 2208
     name: ".dynstr"
   - type: 1879048191
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 2898
     size: 78
     offset: 2898
     name: ".gnu.version"
   - type: 1879048189
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 2976
     size: 236
     offset: 2976
     name: ".gnu.version_d"
   - type: SHT_RELA
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 3216
     size: 24
     offset: 3216
     name: ".rela.dyn"
   - type: 19
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 3240
     size: 32
     offset: 3240
     name: ".relr.dyn"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 4096
     size: 160465
     offset: 4096
     name: ".text"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 167936
     size: 25688
     offset: 167936
     name: ".rodata"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 193624
     size: 2828
     offset: 193624
     name: ".eh_frame_hdr"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 196456
     size: 15576
     offset: 196456
     name: ".eh_frame"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 213600
     size: 7200
     offset: 213600
     name: ".data.rel.ro"
   - type: SHT_DYNAMIC
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 220800
     size: 384
     offset: 220800
     name: ".dynamic"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 221184
     size: 2892
     offset: 221184
     name: ".data"
   - type: SHT_NOBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 224096
     size: 1968
     offset: 224076
     name: ".bss"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 52
     offset: 224076
     name: ".gnu_debuglink"
   - type: SHT_STRTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 190
     offset: 224128
