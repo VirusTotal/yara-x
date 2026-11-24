@@ -447,8 +447,16 @@ impl FastVM<'_> {
         let n = (*range.start() as usize).saturating_mul(step);
         let m = (*range.end() as usize).saturating_mul(step);
 
+        // When no fixed byte follows the jump (e.g. the jump is the last
+        // instruction in the pattern, or is followed by an alternation or
+        // masked literal without a fixed leading byte), we cannot search for a
+        // sentinel byte after the jump — and unlike the `Some(b)` path below,
+        // the jump is allowed to consume up to `input.len()` itself.
         let Some(b) = byte_after_jmp else {
             let mut max = cmp::min(m, input.len());
+            // When newlines are disallowed, stop before the first 0x0A so no
+            // jump length consumes it. If 0x0A falls within the mandatory
+            // prefix `0..n`, `max` becomes `< n` and the range below is empty.
             if !accept_newlines
                 && let Some(nl) = memchr::memchr(0x0A, &input[..max])
             {
@@ -555,8 +563,19 @@ impl FastVM<'_> {
         //             ^              ^
         //             range_min      range_max
         //
+        // When no fixed byte precedes the jump (e.g. the jump is the first
+        // instruction in the pattern, or is preceded by an alternation or
+        // masked literal without a fixed trailing byte), we cannot search for
+        // a sentinel byte before the jump — and unlike the `Some(b)` path
+        // below, the jump is allowed to consume all of `input` back to offset
+        // 0.
         let Some(b) = expected_after_jump else {
             let mut max = cmp::min(m, input.len());
+            // When newlines are disallowed, stop before the rightmost 0x0A in
+            // the candidate suffix `input[input.len() - max..]` so no jump
+            // length consumes it. `nl` is the index within that suffix, so at
+            // most `max - nl - 1` bytes lie to its right; if that is `< n`
+            // (0x0A inside the mandatory prefix), the range below is empty.
             if !accept_newlines
                 && let Some(nl) =
                     memchr::memrchr(0x0A, &input[input.len() - max..])
