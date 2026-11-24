@@ -133,7 +133,7 @@ message Section {
   // Section type classification (e.g., PROGBITS, SYMTAB).
   required SectionType type = 1;
   // Section attributes represented as bitwise flags.
-  required int64 flags = 2;
+  required int64 flags = 2 [(yara.field_options).fmt = "flags:SectionFlags"];
   // Virtual address where the section resides in memory.
   required int64 address = 3;
   // Size in bytes of the section data.
@@ -160,6 +160,21 @@ enum SectionType {
   SHT_DYNSYM     = 11; // Dynamic linker symbol table
   SHT_INIT_ARRAY = 14; // Array of constructors
   SHT_FINI_ARRAY = 15; // Array of destructors
+}
+
+enum SectionFlags {
+  option (yara.enum_options).inline = true;
+  SHF_WRITE            = 0x1;   // Section is writable
+  SHF_ALLOC            = 0x2;   // Section is present during execution
+  SHF_EXECINSTR        = 0x4;   // Section contains executable instructions
+  SHF_MERGE            = 0x10;  // Section might be merged
+  SHF_STRINGS          = 0x20;  // Section contains null-terminated strings
+  SHF_INFO_LINK        = 0x40;  // `sh_info` contains SHT index
+  SHF_LINK_ORDER       = 0x80;  // Preserve order after combining
+  SHF_OS_NONCONFORMING = 0x100; // Non-standard OS specific handling required
+  SHF_GROUP            = 0x200; // Section is member of a group
+  SHF_TLS              = 0x400; // Section holds thread-local data
+  SHF_COMPRESSED       = 0x800; // Section with compressed data
 }
 
 message Segment {

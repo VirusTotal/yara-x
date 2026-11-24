@@ -12,79 +12,79 @@ dynsym_entries: 2
 dynamic_section_entries: 11
 sections:
   - type: SHT_NULL
-    flags: 0
+    flags: 0x0
     address: 0
     size: 0
     offset: 0
     name: ""
   - type: SHT_DYNSYM
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 512
     size: 48
     offset: 512
     name: ".dynsym"
   - type: 1879048182
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 560
     size: 32
     offset: 560
     name: ".gnu.hash"
   - type: SHT_HASH
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 592
     size: 24
     offset: 592
     name: ".hash"
   - type: SHT_STRTAB
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 616
     size: 20
     offset: 616
     name: ".dynstr"
   - type: SHT_RELA
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 640
     size: 576
     offset: 640
     name: ".rela.dyn"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 66752
     size: 576
     offset: 1216
     name: ".text"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 132864
     size: 0
     offset: 1792
     name: ".data.rel.ro"
   - type: SHT_DYNAMIC
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 132864
     size: 192
     offset: 1792
     name: ".dynamic"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 198592
     size: 552
     offset: 1984
     name: ".data"
   - type: SHT_NOBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 199144
     size: 208
     offset: 2536
     name: ".bss"
   - type: SHT_PROGBITS
-    flags: 48
+    flags: 0x30  # SHF_MERGE | SHF_STRINGS
     address: 0
     size: 19
     offset: 2536
     name: ".comment"
   - type: SHT_STRTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 101
     offset: 2555

@@ -12,169 +12,169 @@ dynsym_entries: 9
 dynamic_section_entries: 31
 sections:
   - type: SHT_NULL
-    flags: 0
+    flags: 0x0
     address: 0
     size: 0
     offset: 0
     name: ""
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 340
     size: 1
     offset: 340
     name: ".interp"
   - type: SHT_NOTE
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 360
     size: 3
     offset: 360
     name: ".note.gnu.build-id"
   - type: SHT_DYNSYM
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 396
     size: 144
     offset: 396
     name: ".dynsym"
   - type: SHT_STRTAB
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 8012
     size: 8576
     offset: 8012
     name: ".dynstr"
   - type: SHT_HASH
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 16588
     size: 251
     offset: 16588
     name: ".hash"
   - type: 1879048191
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 19552
     size: 66
     offset: 19552
     name: ".gnu.version"
   - type: 1879048189
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 20504
     size: 2
     offset: 20504
     name: ".gnu.version_d"
   - type: 1879048190
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 20532
     size: 8
     offset: 20532
     name: ".gnu.version_r"
   - type: SHT_REL
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 20628
     size: 74
     offset: 20628
     name: ".rel.dyn"
   - type: SHT_REL
-    flags: 66
+    flags: 0x42  # SHF_ALLOC | SHF_INFO_LINK
     address: 24356
     size: 73
     offset: 24356
     name: ".rel.plt"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 25172
     size: 62
     offset: 25172
     name: ".plt"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 26416
     size: 198
     offset: 26416
     name: ".text"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 468052
     size: 197
     offset: 468052
     name: ".ARM.extab"
   - type: 1879048193
-    flags: 130
+    flags: 0x82  # SHF_ALLOC | SHF_LINK_ORDER
     address: 472272
     size: 220
     offset: 472272
     name: ".ARM.exidx"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 476672
     size: 224
     offset: 476672
     name: ".rodata"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 496776
     size: 3
     offset: 492680
     name: ".data.rel.ro.local"
   - type: SHT_FINI_ARRAY
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 496832
     size: 1
     offset: 492736
     name: ".fini_array"
   - type: SHT_INIT_ARRAY
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 496840
     size: 1
     offset: 492744
     name: ".init_array"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 496856
     size: 200
     offset: 492760
     name: ".data.rel.ro"
   - type: SHT_DYNAMIC
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 498856
     size: 296
     offset: 494760
     name: ".dynamic"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 499156
     size: 50
     offset: 495060
     name: ".got"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 499712
     size: 8
     offset: 495616
     name: ".data"
   - type: SHT_NOBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 499824
     size: 189
     offset: 495728
     name: ".bss"
   - type: SHT_PROGBITS
-    flags: 48
+    flags: 0x30  # SHF_MERGE | SHF_STRINGS
     address: 0
     size: 8
     offset: 495728
     name: ".comment"
   - type: SHT_NOTE
-    flags: 0
+    flags: 0x0
     address: 0
     size: 2
     offset: 495832
     name: ".note.gnu.gold-version"
   - type: 1879048195
-    flags: 0
+    flags: 0x0
     address: 0
     size: 4
     offset: 495860
     name: ".ARM.attributes"
   - type: SHT_STRTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 42
     offset: 495918

@@ -12,109 +12,109 @@ dynsym_entries: 0
 dynamic_section_entries: 0
 sections:
   - type: SHT_NULL
-    flags: 0
+    flags: 0x0
     address: 0
     size: 0
     offset: 0
     name: ""
   - type: SHT_STRTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 206
     offset: 3320
     name: ".strtab"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 0
     size: 0
     offset: 52
     name: ".text"
   - type: SHT_PROGBITS
-    flags: 48
+    flags: 0x30  # SHF_MERGE | SHF_STRINGS
     address: 0
     size: 563
     offset: 52
     name: ".debug_str"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 145
     offset: 615
     name: ".debug_abbrev"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 820
     offset: 760
     name: ".debug_info"
   - type: SHT_REL
-    flags: 0
+    flags: 0x0
     address: 0
     size: 320
     offset: 2984
     name: ".rel.debug_info"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 0
     offset: 1580
     name: ".debug_ranges"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 1
     offset: 1580
     name: ".debug_macinfo"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 42
     offset: 1581
     name: ".debug_pubnames"
   - type: SHT_REL
-    flags: 0
+    flags: 0x0
     address: 0
     size: 8
     offset: 3304
     name: ".rel.debug_pubnames"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 104
     offset: 1623
     name: ".debug_pubtypes"
   - type: SHT_REL
-    flags: 0
+    flags: 0x0
     address: 0
     size: 8
     offset: 3312
     name: ".rel.debug_pubtypes"
   - type: SHT_PROGBITS
-    flags: 48
+    flags: 0x30  # SHF_MERGE | SHF_STRINGS
     address: 0
     size: 22
     offset: 1727
     name: ".comment"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 0
     offset: 1749
     name: ".note.GNU-stack"
   - type: 1879048195
-    flags: 0
+    flags: 0x0
     address: 0
     size: 58
     offset: 1749
     name: ".ARM.attributes"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 489
     offset: 1807
     name: ".debug_line"
   - type: SHT_SYMTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 688
     offset: 2296
