@@ -419,74 +419,6 @@ impl FastVM<'_> {
         true
     }
 
-    /// Advances `position` across a variable-length jump that is not followed
-    /// (in execution order) by a known byte, inserting every reachable target
-    /// into `next_positions`.
-    ///
-    /// Every jump length in `n..=m` that fits in `input` is valid, including
-    /// one that consumes `input` entirely. This happens when the jump is the
-    /// last instruction of the pattern in the direction being executed, as in
-    /// `{ 01 02 [0-4] }` forwards or `{ [0-4] 01 02 }` backwards, and also
-    /// when the instruction after the jump is one whose first byte is not
-    /// known, like an alternation or a masked literal.
-    ///
-    /// When `accept_newlines` is false the jump stops growing at the first
-    /// `0x0A` it would have to consume.
-    #[inline]
-    fn jump_unrestricted(
-        input: &[u8],
-        accept_newlines: bool,
-        n: usize,
-        m: usize,
-        step: usize,
-        position: usize,
-        next_positions: &mut PositionSet,
-        backwards: bool,
-    ) {
-        if n > input.len() {
-            return;
-        }
-
-        // Bytes consumed by a jump of `len`, in haystack order.
-        let consumed = |from: usize, to: usize| {
-            if backwards {
-                &input[input.len() - to..input.len() - from]
-            } else {
-                &input[from..to]
-            }
-        };
-
-        if !accept_newlines
-            && n > 0
-            && memchr::memchr(0x0A, consumed(0, n)).is_some()
-        {
-            return;
-        }
-
-        let max = cmp::min(m, input.len());
-        let mut len = n;
-
-        while len <= max {
-            next_positions.insert(position + len);
-
-            let Some(next_len) = len.checked_add(step) else {
-                break;
-            };
-
-            if next_len > max {
-                break;
-            }
-
-            if !accept_newlines
-                && memchr::memchr(0x0A, consumed(len, next_len)).is_some()
-            {
-                break;
-            }
-
-            len = next_len;
-        }
-    }
-
     /// Advances a single forward `position` across a variable-length jump
     /// `range` (`[min..=max]` steps, scaled by 2 when [`JumpFlags::Wide`] is
     /// set), inserting reachable target offsets into `next_positions`.
@@ -495,10 +427,11 @@ impl FastVM<'_> {
     /// (`&full_input[position..]`). When `byte_after_jmp` is `Some(b)` (the
     /// known leading byte of the instruction immediately following the jump),
     /// SIMD `memchr` / `memchr2` is used to record only offsets within the jump
-    /// window where `b` actually occurs; when [`JumpFlags::AcceptNewlines`] is
-    /// not set, any `0x0A` byte in the mandatory prefix or jump window halts
-    /// further expansion from `position`. When `byte_after_jmp` is `None` the
-    /// jump is handled by [`FastVM::jump_unrestricted`].
+    /// window where `b` actually occurs; when `byte_after_jmp` is `None`,
+    /// every valid step-aligned jump length in `n..=min(m, input.len())` is
+    /// inserted. When [`JumpFlags::AcceptNewlines`] is not set, any `0x0A`
+    /// byte in the mandatory prefix or jump window halts further expansion
+    /// from `position`.
     #[inline]
     fn jump_fwd(
         input: &[u8],
@@ -509,23 +442,21 @@ impl FastVM<'_> {
         next_positions: &mut PositionSet,
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
+        let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
 
         let n = (*range.start() as usize).saturating_mul(step);
         let m = (*range.end() as usize).saturating_mul(step);
 
-        let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
-
-        let Some(byte_after_jmp) = byte_after_jmp else {
-            Self::jump_unrestricted(
-                input,
-                accept_newlines,
-                n,
-                m,
-                step,
-                position,
-                next_positions,
-                false,
-            );
+        let Some(b) = byte_after_jmp else {
+            let mut max = cmp::min(m, input.len());
+            if !accept_newlines
+                && let Some(nl) = memchr::memchr(0x0A, &input[..max])
+            {
+                max = nl;
+            }
+            for len in (n..=max).step_by(step) {
+                next_positions.insert(position + len);
+            }
             return;
         };
 
@@ -539,7 +470,7 @@ impl FastVM<'_> {
         // If newlines are not accepted in the data being skipped by the jump
         // lets make sure that the ranges that goes from the current position
         // to position + n doesn't contain any newlines.
-        if !flags.contains(JumpFlags::AcceptNewlines)
+        if !accept_newlines
             && memchr::memchr(0x0A, &input[..range_min]).is_some()
         {
             return;
@@ -550,8 +481,6 @@ impl FastVM<'_> {
         let mut on_match_found = |offset| {
             next_positions.insert(position + range_min + offset);
         };
-
-        let b = byte_after_jmp;
 
         if !accept_newlines {
             // Search for the literal byte and the newline at the same
@@ -587,9 +516,10 @@ impl FastVM<'_> {
     /// `expected_after_jump` is `Some(b)` (the known trailing byte of the
     /// preceding sub-pattern in backward execution), reverse SIMD `memrchr` /
     /// `memrchr2` scans right-to-left so only candidate positions preceded by
-    /// `b` are inserted, stopping at the first `0x0A` when
-    /// [`JumpFlags::AcceptNewlines`] is not set. When `expected_after_jump` is
-    /// `None` the jump is handled by [`FastVM::jump_unrestricted`].
+    /// `b` are inserted; when `expected_after_jump` is `None`, every valid
+    /// step-aligned jump length in `n..=min(m, input.len())` is inserted. When
+    /// [`JumpFlags::AcceptNewlines`] is not set, any `0x0A` byte halts further
+    /// expansion from `position`.
     #[inline]
     fn jump_bck(
         input: &[u8],
@@ -600,6 +530,7 @@ impl FastVM<'_> {
         next_positions: &mut PositionSet,
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
+        let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
 
         let n = (*range.start() as usize).saturating_mul(step);
         let m = (*range.end() as usize).saturating_mul(step);
@@ -624,19 +555,17 @@ impl FastVM<'_> {
         //             ^              ^
         //             range_min      range_max
         //
-        let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
-
-        let Some(expected_after_jump) = expected_after_jump else {
-            Self::jump_unrestricted(
-                input,
-                accept_newlines,
-                n,
-                m,
-                step,
-                position,
-                next_positions,
-                true,
-            );
+        let Some(b) = expected_after_jump else {
+            let mut max = cmp::min(m, input.len());
+            if !accept_newlines
+                && let Some(nl) =
+                    memchr::memrchr(0x0A, &input[input.len() - max..])
+            {
+                max = max - nl - 1;
+            }
+            for len in (n..=max).step_by(step) {
+                next_positions.insert(position + len);
+            }
             return;
         };
 
@@ -650,7 +579,7 @@ impl FastVM<'_> {
         // If newlines are not accepted in the data being skipped by the jump
         // lets make sure that the ranges that goes from the current position
         // to position + n doesn't contain any newlines.
-        if !flags.contains(JumpFlags::AcceptNewlines)
+        if !accept_newlines
             && memchr::memchr(0x0A, &input[range_max..]).is_some()
         {
             return;
@@ -663,8 +592,6 @@ impl FastVM<'_> {
                 next_positions.insert(position + n + jump);
             }
         };
-
-        let b = expected_after_jump;
 
         if !accept_newlines {
             // Search for the literal byte and the newline at the same
@@ -788,10 +715,15 @@ mod tests {
 
     /// Collects every match length reported by the VM, in the order they are
     /// found.
-    fn all_matches(code: &[u8], loc: crate::re::BckCodeLoc, input: &[u8]) -> Vec<usize> {
+    fn all_matches<C: crate::re::CodeLoc>(
+        code: &[u8],
+        loc: C,
+        input: &[u8],
+        wide: bool,
+    ) -> Vec<usize> {
         let mut lens = Vec::new();
         let mut vm = FastVM::new(code);
-        vm.try_match(loc, input, false, |len| {
+        vm.try_match(loc, input, wide, |len| {
             lens.push(len);
             ControlFlow::Continue(())
         });
@@ -808,14 +740,26 @@ mod tests {
         ]);
         let mut code = Vec::new();
         let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+        let fwd_code = atoms[0].fwd_code.unwrap();
 
-        let mut lens = Vec::new();
-        let mut vm = FastVM::new(&code);
-        vm.try_match(atoms[0].fwd_code.unwrap(), &[0x01, 0x02, 0x03, 0xff], false, |len| {
-            lens.push(len);
-            ControlFlow::Continue(())
-        });
-        assert_eq!(lens, vec![3, 4]);
+        assert_eq!(
+            all_matches(&code, fwd_code, &[0x01, 0x02, 0x03, 0xff], false),
+            vec![3, 4]
+        );
+        assert_eq!(
+            all_matches(&code, fwd_code, &[0x01, 0x02, 0x03], false),
+            vec![3]
+        );
+        // Wide mode steps by 2 and ignores a trailing odd byte.
+        assert_eq!(
+            all_matches(
+                &code,
+                fwd_code,
+                &[0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0xff, 0x00, 0xaa],
+                true,
+            ),
+            vec![6, 8]
+        );
     }
 
     #[test]
@@ -833,7 +777,12 @@ mod tests {
         // The VM reports matches in increasing length order, so consuming
         // nothing comes first and consuming the only byte available comes
         // second.
-        assert_eq!(all_matches(&code, bck_code, &[0x39]), vec![0, 1]);
+        assert_eq!(all_matches(&code, bck_code, &[0x39], false), vec![0, 1]);
+        // Wide mode steps by 2 and ignores a leading odd byte.
+        assert_eq!(
+            all_matches(&code, bck_code, &[0xaa, 0x39, 0x00], true),
+            vec![0, 2]
+        );
     }
 
     #[test]
@@ -848,6 +797,83 @@ mod tests {
         let mut code = Vec::new();
         let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
 
-        assert_eq!(all_matches(&code, atoms[0].bck_code.unwrap(), &[]), vec![0]);
+        assert_eq!(
+            all_matches(&code, atoms[0].bck_code.unwrap(), &[], false),
+            vec![0]
+        );
+
+        // When the minimum is non-zero, exhausted input must not match.
+        let hir = Hir::concat(vec![
+            Hir::any_byte_repetition(1, Some(2), false),
+            Hir::literal([0x42, 0x31]),
+        ]);
+        let mut code = Vec::new();
+        let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+
+        assert_eq!(
+            all_matches(&code, atoms[0].bck_code.unwrap(), &[], false),
+            Vec::<usize>::new()
+        );
+    }
+
+    #[test]
+    fn edge_jump_no_newline() {
+        let no_nl_jump = |min, max| {
+            Hir::from(regex_syntax::hir::Hir::repetition(
+                regex_syntax::hir::Repetition {
+                    min,
+                    max,
+                    greedy: true,
+                    sub: Box::new(regex_syntax::hir::Hir::dot(
+                        regex_syntax::hir::Dot::AnyByteExceptLF,
+                    )),
+                },
+            ))
+        };
+
+        // Forward `/abc.{0,4}/` (without `/s`): must stop before `\n` while
+        // still matching a 0-length jump right before `\n`.
+        let hir =
+            Hir::concat(vec![Hir::literal(*b"abc"), no_nl_jump(0, Some(4))]);
+        let mut code = Vec::new();
+        let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+        let fwd_code = atoms[0].fwd_code.unwrap();
+
+        assert_eq!(all_matches(&code, fwd_code, b"abc\n", false), vec![3]);
+        assert_eq!(
+            all_matches(&code, fwd_code, b"abcx\ny", false),
+            vec![3, 4]
+        );
+
+        // Forward `/abc.{2,4}/` with `\n` inside the mandatory prefix.
+        let hir =
+            Hir::concat(vec![Hir::literal(*b"abc"), no_nl_jump(2, Some(4))]);
+        let mut code = Vec::new();
+        let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+        assert_eq!(
+            all_matches(&code, atoms[0].fwd_code.unwrap(), b"abcx\nyz", false),
+            Vec::<usize>::new()
+        );
+
+        // Backward `/.{0,4}abc/` (without `/s`): stops at `\n`, still allows
+        // a 0-length jump immediately after `\n`.
+        let hir =
+            Hir::concat(vec![no_nl_jump(0, Some(4)), Hir::literal(*b"abc")]);
+        let mut code = Vec::new();
+        let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+        let bck_code = atoms[0].bck_code.unwrap();
+
+        assert_eq!(all_matches(&code, bck_code, b"\n", false), vec![0]);
+        assert_eq!(all_matches(&code, bck_code, b"y\nx", false), vec![0, 1]);
+
+        // Backward `/.{2,4}abc/` with `\n` inside the mandatory prefix.
+        let hir =
+            Hir::concat(vec![no_nl_jump(2, Some(4)), Hir::literal(*b"abc")]);
+        let mut code = Vec::new();
+        let atoms = Compiler::new().compile(&hir, &mut code).unwrap();
+        assert_eq!(
+            all_matches(&code, atoms[0].bck_code.unwrap(), b"zy\nx", false),
+            Vec::<usize>::new()
+        );
     }
 }
