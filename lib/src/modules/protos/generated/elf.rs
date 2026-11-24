@@ -2735,6 +2735,78 @@ impl SectionType {
 }
 
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+// @@protoc_insertion_point(enum:elf.SectionFlags)
+pub enum SectionFlags {
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_WRITE)
+    SHF_WRITE = 1,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_ALLOC)
+    SHF_ALLOC = 2,
+    // @@protoc_insertion_point(enum_value:elf.SectionFlags.SHF_EXECINSTR)
+    SHF_EXECINSTR = 4,
+}
+
+impl ::protobuf::Enum for SectionFlags {
+    const NAME: &'static str = "SectionFlags";
+
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<SectionFlags> {
+        match value {
+            1 => ::std::option::Option::Some(SectionFlags::SHF_WRITE),
+            2 => ::std::option::Option::Some(SectionFlags::SHF_ALLOC),
+            4 => ::std::option::Option::Some(SectionFlags::SHF_EXECINSTR),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn from_str(str: &str) -> ::std::option::Option<SectionFlags> {
+        match str {
+            "SHF_WRITE" => ::std::option::Option::Some(SectionFlags::SHF_WRITE),
+            "SHF_ALLOC" => ::std::option::Option::Some(SectionFlags::SHF_ALLOC),
+            "SHF_EXECINSTR" => ::std::option::Option::Some(SectionFlags::SHF_EXECINSTR),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    const VALUES: &'static [SectionFlags] = &[
+        SectionFlags::SHF_WRITE,
+        SectionFlags::SHF_ALLOC,
+        SectionFlags::SHF_EXECINSTR,
+    ];
+}
+
+impl ::protobuf::EnumFull for SectionFlags {
+    fn enum_descriptor() -> ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().enum_by_package_relative_name("SectionFlags").unwrap()).clone()
+    }
+
+    fn descriptor(&self) -> ::protobuf::reflect::EnumValueDescriptor {
+        let index = match self {
+            SectionFlags::SHF_WRITE => 0,
+            SectionFlags::SHF_ALLOC => 1,
+            SectionFlags::SHF_EXECINSTR => 2,
+        };
+        Self::enum_descriptor().value_by_index(index)
+    }
+}
+
+// Note, `Default` is implemented although default value is not 0
+impl ::std::default::Default for SectionFlags {
+    fn default() -> Self {
+        SectionFlags::SHF_WRITE
+    }
+}
+
+impl SectionFlags {
+    fn generated_enum_descriptor_data() -> ::protobuf::reflect::GeneratedEnumDescriptorData {
+        ::protobuf::reflect::GeneratedEnumDescriptorData::new::<SectionFlags>("SectionFlags")
+    }
+}
+
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
 // @@protoc_insertion_point(enum:elf.SegmentType)
 pub enum SegmentType {
     // @@protoc_insertion_point(enum_value:elf.SegmentType.PT_NULL)
@@ -3572,49 +3644,51 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     OTE\x10\x07\x12\x0e\n\nSHT_NOBITS\x10\x08\x12\x0b\n\x07SHT_REL\x10\t\x12\
     \r\n\tSHT_SHLIB\x10\n\x12\x0e\n\nSHT_DYNSYM\x10\x0b\x12\x12\n\x0eSHT_INI\
     T_ARRAY\x10\x0e\x12\x12\n\x0eSHT_FINI_ARRAY\x10\x0f\x1a\x06\x92\x93\x19\
-    \x02\x10\x01*\xe0\x01\n\x0bSegmentType\x12\x0b\n\x07PT_NULL\x10\0\x12\
-    \x0b\n\x07PT_LOAD\x10\x01\x12\x0e\n\nPT_DYNAMIC\x10\x02\x12\r\n\tPT_INTE\
-    RP\x10\x03\x12\x0b\n\x07PT_NOTE\x10\x04\x12\x0c\n\x08PT_SHLIB\x10\x05\
-    \x12\x0b\n\x07PT_PHDR\x10\x06\x12\n\n\x06PT_TLS\x10\x07\x12\x17\n\x0fPT_\
-    GNU_EH_FRAME\x10\xd0\xca\xd3\xa3\x06\x12\x14\n\x0cPT_GNU_STACK\x10\xd1\
-    \xca\xd3\xa3\x06\x12\x14\n\x0cPT_GNU_RELRO\x10\xd2\xca\xd3\xa3\x06\x12\
-    \x17\n\x0fPT_GNU_PROPERTY\x10\xd3\xca\xd3\xa3\x06\x1a\x06\x92\x93\x19\
-    \x02\x10\x01*4\n\x0cSegmentFlags\x12\x08\n\x04PF_X\x10\x01\x12\x08\n\x04\
-    PF_W\x10\x02\x12\x08\n\x04PF_R\x10\x04\x1a\x06\x92\x93\x19\x02\x10\x01*{\
-    \n\x07SymType\x12\x0e\n\nSTT_NOTYPE\x10\0\x12\x0e\n\nSTT_OBJECT\x10\x01\
-    \x12\x0c\n\x08STT_FUNC\x10\x02\x12\x0f\n\x0bSTT_SECTION\x10\x03\x12\x0c\
-    \n\x08STT_FILE\x10\x04\x12\x0e\n\nSTT_COMMON\x10\x05\x12\x0b\n\x07STT_TL\
-    S\x10\x06\x1a\x06\x92\x93\x19\x02\x10\x01*>\n\x07SymBind\x12\r\n\tSTB_LO\
-    CAL\x10\0\x12\x0e\n\nSTB_GLOBAL\x10\x01\x12\x0c\n\x08STB_WEAK\x10\x02\
-    \x1a\x06\x92\x93\x19\x02\x10\x01*]\n\rSymVisibility\x12\x0f\n\x0bSTV_DEF\
-    AULT\x10\0\x12\x10\n\x0cSTV_INTERNAL\x10\x01\x12\x0e\n\nSTV_HIDDEN\x10\
-    \x02\x12\x11\n\rSTV_PROTECTED\x10\x03\x1a\x06\x92\x93\x19\x02\x10\x01*\
-    \xc2\x06\n\x07DynType\x12\x0b\n\x07DT_NULL\x10\0\x12\r\n\tDT_NEEDED\x10\
-    \x01\x12\x0f\n\x0bDT_PLTRELSZ\x10\x02\x12\r\n\tDT_PLTGOT\x10\x03\x12\x0b\
-    \n\x07DT_HASH\x10\x04\x12\r\n\tDT_STRTAB\x10\x05\x12\r\n\tDT_SYMTAB\x10\
-    \x06\x12\x0b\n\x07DT_RELA\x10\x07\x12\r\n\tDT_RELASZ\x10\x08\x12\x0e\n\n\
-    DT_RELAENT\x10\t\x12\x0c\n\x08DT_STRSZ\x10\n\x12\r\n\tDT_SYMENT\x10\x0b\
-    \x12\x0b\n\x07DT_INIT\x10\x0c\x12\x0b\n\x07DT_FINI\x10\r\x12\r\n\tDT_SON\
-    AME\x10\x0e\x12\x0c\n\x08DT_RPATH\x10\x0f\x12\x0f\n\x0bDT_SYMBOLIC\x10\
-    \x10\x12\n\n\x06DT_REL\x10\x11\x12\x0c\n\x08DT_RELSZ\x10\x12\x12\r\n\tDT\
-    _RELENT\x10\x13\x12\r\n\tDT_PLTREL\x10\x14\x12\x0c\n\x08DT_DEBUG\x10\x15\
-    \x12\x0e\n\nDT_TEXTREL\x10\x16\x12\r\n\tDT_JMPREL\x10\x17\x12\x0f\n\x0bD\
-    T_BIND_NOW\x10\x18\x12\x11\n\rDT_INIT_ARRAY\x10\x19\x12\x11\n\rDT_FINI_A\
-    RRAY\x10\x1a\x12\x13\n\x0fDT_INIT_ARRAYSZ\x10\x1b\x12\x13\n\x0fDT_FINI_A\
-    RRAYSZ\x10\x1c\x12\x0e\n\nDT_RUNPATH\x10\x1d\x12\x0c\n\x08DT_FLAGS\x10\
-    \x1e\x12\x0f\n\x0bDT_ENCODING\x10\x20\x12\x0f\n\x07DT_LOOS\x10\x8d\x80\
-    \x80\x80\x06\x12\x0f\n\x07DT_HIOS\x10\x80\xe0\xff\xff\x06\x12\x13\n\x0bD\
-    T_VALRNGLO\x10\x80\xfa\xff\xff\x06\x12\x13\n\x0bDT_VALRNGHI\x10\xff\xfb\
-    \xff\xff\x06\x12\x14\n\x0cDT_ADDRRNGLO\x10\x80\xfc\xff\xff\x06\x12\x14\n\
-    \x0cDT_ADDRRNGHI\x10\xff\xfd\xff\xff\x06\x12\x11\n\tDT_VERSYM\x10\xf0\
-    \xff\xff\xff\x06\x12\x14\n\x0cDT_RELACOUNT\x10\xf9\xff\xff\xff\x06\x12\
-    \x13\n\x0bDT_RELCOUNT\x10\xfa\xff\xff\xff\x06\x12\x12\n\nDT_FLAGS_1\x10\
-    \xfb\xff\xff\xff\x06\x12\x11\n\tDT_VERDEF\x10\xfc\xff\xff\xff\x06\x12\
-    \x14\n\x0cDT_VERDEFNUM\x10\xfd\xff\xff\xff\x06\x12\x12\n\nDT_VERNEED\x10\
-    \xfe\xff\xff\xff\x06\x12\x15\n\rDT_VERNEEDNUM\x10\xff\xff\xff\xff\x06\
-    \x12\x11\n\tDT_LOPROC\x10\x80\x80\x80\x80\x07\x12\x11\n\tDT_HIPROC\x10\
-    \xff\xff\xff\xff\x07\x1a\x06\x92\x93\x19\x02\x10\x01B\x1e\xfa\x92\x19\
-    \x1a\n\x03elf\x12\x07elf.ELF\x1a\nelf-moduleb\x06proto2\
+    \x02\x10\x01*G\n\x0cSectionFlags\x12\r\n\tSHF_WRITE\x10\x01\x12\r\n\tSHF\
+    _ALLOC\x10\x02\x12\x11\n\rSHF_EXECINSTR\x10\x04\x1a\x06\x92\x93\x19\x02\
+    \x10\x01*\xe0\x01\n\x0bSegmentType\x12\x0b\n\x07PT_NULL\x10\0\x12\x0b\n\
+    \x07PT_LOAD\x10\x01\x12\x0e\n\nPT_DYNAMIC\x10\x02\x12\r\n\tPT_INTERP\x10\
+    \x03\x12\x0b\n\x07PT_NOTE\x10\x04\x12\x0c\n\x08PT_SHLIB\x10\x05\x12\x0b\
+    \n\x07PT_PHDR\x10\x06\x12\n\n\x06PT_TLS\x10\x07\x12\x17\n\x0fPT_GNU_EH_F\
+    RAME\x10\xd0\xca\xd3\xa3\x06\x12\x14\n\x0cPT_GNU_STACK\x10\xd1\xca\xd3\
+    \xa3\x06\x12\x14\n\x0cPT_GNU_RELRO\x10\xd2\xca\xd3\xa3\x06\x12\x17\n\x0f\
+    PT_GNU_PROPERTY\x10\xd3\xca\xd3\xa3\x06\x1a\x06\x92\x93\x19\x02\x10\x01*\
+    4\n\x0cSegmentFlags\x12\x08\n\x04PF_X\x10\x01\x12\x08\n\x04PF_W\x10\x02\
+    \x12\x08\n\x04PF_R\x10\x04\x1a\x06\x92\x93\x19\x02\x10\x01*{\n\x07SymTyp\
+    e\x12\x0e\n\nSTT_NOTYPE\x10\0\x12\x0e\n\nSTT_OBJECT\x10\x01\x12\x0c\n\
+    \x08STT_FUNC\x10\x02\x12\x0f\n\x0bSTT_SECTION\x10\x03\x12\x0c\n\x08STT_F\
+    ILE\x10\x04\x12\x0e\n\nSTT_COMMON\x10\x05\x12\x0b\n\x07STT_TLS\x10\x06\
+    \x1a\x06\x92\x93\x19\x02\x10\x01*>\n\x07SymBind\x12\r\n\tSTB_LOCAL\x10\0\
+    \x12\x0e\n\nSTB_GLOBAL\x10\x01\x12\x0c\n\x08STB_WEAK\x10\x02\x1a\x06\x92\
+    \x93\x19\x02\x10\x01*]\n\rSymVisibility\x12\x0f\n\x0bSTV_DEFAULT\x10\0\
+    \x12\x10\n\x0cSTV_INTERNAL\x10\x01\x12\x0e\n\nSTV_HIDDEN\x10\x02\x12\x11\
+    \n\rSTV_PROTECTED\x10\x03\x1a\x06\x92\x93\x19\x02\x10\x01*\xc2\x06\n\x07\
+    DynType\x12\x0b\n\x07DT_NULL\x10\0\x12\r\n\tDT_NEEDED\x10\x01\x12\x0f\n\
+    \x0bDT_PLTRELSZ\x10\x02\x12\r\n\tDT_PLTGOT\x10\x03\x12\x0b\n\x07DT_HASH\
+    \x10\x04\x12\r\n\tDT_STRTAB\x10\x05\x12\r\n\tDT_SYMTAB\x10\x06\x12\x0b\n\
+    \x07DT_RELA\x10\x07\x12\r\n\tDT_RELASZ\x10\x08\x12\x0e\n\nDT_RELAENT\x10\
+    \t\x12\x0c\n\x08DT_STRSZ\x10\n\x12\r\n\tDT_SYMENT\x10\x0b\x12\x0b\n\x07D\
+    T_INIT\x10\x0c\x12\x0b\n\x07DT_FINI\x10\r\x12\r\n\tDT_SONAME\x10\x0e\x12\
+    \x0c\n\x08DT_RPATH\x10\x0f\x12\x0f\n\x0bDT_SYMBOLIC\x10\x10\x12\n\n\x06D\
+    T_REL\x10\x11\x12\x0c\n\x08DT_RELSZ\x10\x12\x12\r\n\tDT_RELENT\x10\x13\
+    \x12\r\n\tDT_PLTREL\x10\x14\x12\x0c\n\x08DT_DEBUG\x10\x15\x12\x0e\n\nDT_\
+    TEXTREL\x10\x16\x12\r\n\tDT_JMPREL\x10\x17\x12\x0f\n\x0bDT_BIND_NOW\x10\
+    \x18\x12\x11\n\rDT_INIT_ARRAY\x10\x19\x12\x11\n\rDT_FINI_ARRAY\x10\x1a\
+    \x12\x13\n\x0fDT_INIT_ARRAYSZ\x10\x1b\x12\x13\n\x0fDT_FINI_ARRAYSZ\x10\
+    \x1c\x12\x0e\n\nDT_RUNPATH\x10\x1d\x12\x0c\n\x08DT_FLAGS\x10\x1e\x12\x0f\
+    \n\x0bDT_ENCODING\x10\x20\x12\x0f\n\x07DT_LOOS\x10\x8d\x80\x80\x80\x06\
+    \x12\x0f\n\x07DT_HIOS\x10\x80\xe0\xff\xff\x06\x12\x13\n\x0bDT_VALRNGLO\
+    \x10\x80\xfa\xff\xff\x06\x12\x13\n\x0bDT_VALRNGHI\x10\xff\xfb\xff\xff\
+    \x06\x12\x14\n\x0cDT_ADDRRNGLO\x10\x80\xfc\xff\xff\x06\x12\x14\n\x0cDT_A\
+    DDRRNGHI\x10\xff\xfd\xff\xff\x06\x12\x11\n\tDT_VERSYM\x10\xf0\xff\xff\
+    \xff\x06\x12\x14\n\x0cDT_RELACOUNT\x10\xf9\xff\xff\xff\x06\x12\x13\n\x0b\
+    DT_RELCOUNT\x10\xfa\xff\xff\xff\x06\x12\x12\n\nDT_FLAGS_1\x10\xfb\xff\
+    \xff\xff\x06\x12\x11\n\tDT_VERDEF\x10\xfc\xff\xff\xff\x06\x12\x14\n\x0cD\
+    T_VERDEFNUM\x10\xfd\xff\xff\xff\x06\x12\x12\n\nDT_VERNEED\x10\xfe\xff\
+    \xff\xff\x06\x12\x15\n\rDT_VERNEEDNUM\x10\xff\xff\xff\xff\x06\x12\x11\n\
+    \tDT_LOPROC\x10\x80\x80\x80\x80\x07\x12\x11\n\tDT_HIPROC\x10\xff\xff\xff\
+    \xff\x07\x1a\x06\x92\x93\x19\x02\x10\x01B\x1e\xfa\x92\x19\x1a\n\x03elf\
+    \x12\x07elf.ELF\x1a\nelf-moduleb\x06proto2\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -3639,11 +3713,12 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             messages.push(Segment::generated_message_descriptor_data());
             messages.push(Sym::generated_message_descriptor_data());
             messages.push(Dyn::generated_message_descriptor_data());
-            let mut enums = ::std::vec::Vec::with_capacity(10);
+            let mut enums = ::std::vec::Vec::with_capacity(11);
             enums.push(Type::generated_enum_descriptor_data());
             enums.push(Machine::generated_enum_descriptor_data());
             enums.push(OsAbi::generated_enum_descriptor_data());
             enums.push(SectionType::generated_enum_descriptor_data());
+            enums.push(SectionFlags::generated_enum_descriptor_data());
             enums.push(SegmentType::generated_enum_descriptor_data());
             enums.push(SegmentFlags::generated_enum_descriptor_data());
             enums.push(SymType::generated_enum_descriptor_data());

@@ -162,6 +162,13 @@ enum SectionType {
   SHT_FINI_ARRAY = 15; // Array of destructors
 }
 
+enum SectionFlags {
+  option (yara.enum_options).inline = true;
+  SHF_WRITE     = 0x1;
+  SHF_ALLOC     = 0x2;
+  SHF_EXECINSTR = 0x4;
+}
+
 message Segment {
   // Classification of the program segment (e.g., LOAD, DYNAMIC).
   required SegmentType type = 1;

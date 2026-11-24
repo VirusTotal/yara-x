@@ -90,6 +90,30 @@ fn machines() {
     }
 }
 
+#[test]
+fn section_flags() {
+    let elf = create_binary_from_zipped_ihex(
+        "src/modules/elf/tests/testdata/8bfe885838b4d1fba194b761ca900a0425aa892e4b358bf5a9bf4304e571df1b.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "elf"
+        rule test {
+          condition:
+            elf.SHF_WRITE == 0x1 and
+            elf.SHF_ALLOC == 0x2 and
+            elf.SHF_EXECINSTR == 0x4 and
+            elf.sections[12].name == ".text" and
+            elf.sections[12].flags == elf.SHF_ALLOC | elf.SHF_EXECINSTR and
+            elf.sections[21].name == ".data" and
+            elf.sections[21].flags & elf.SHF_WRITE != 0
+        }
+        "#,
+        &elf
+    );
+}
+
 #[allow(clippy::too_many_arguments)]
 fn push_elf32_ehdr(
     buf: &mut Vec<u8>,

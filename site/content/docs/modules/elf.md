@@ -334,6 +334,30 @@ rule SolarisELF {
 }
 ```
 
+### SectionFlags
+
+Possible flags in the `flags` field of the `Section` structure.
+
+| Name          | Value | Description                              |
+|---------------|-------|------------------------------------------|
+| SHF_WRITE     | 0x01  | Section is writable                      |
+| SHF_ALLOC     | 0x02  | Section is present during execution      |
+| SHF_EXECINSTR | 0x04  | Section contains executable instructions |
+
+#### Example
+
+```
+import "elf"
+
+rule WritableExecutableSection {
+    condition:
+        for any section in elf.sections : (
+           section.flags & elf.SHF_WRITE != 0 and
+           section.flags & elf.SHF_EXECINSTR != 0
+        )
+}
+```
+
 ### SectionType
 
 Each of the possible values for the `type` field in the `Section`
