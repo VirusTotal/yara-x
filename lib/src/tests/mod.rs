@@ -1750,6 +1750,32 @@ fn hex_patterns() {
             0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12,
         ]
     );
+
+    // Alternations after jumps must preserve non-greedy jump priority and
+    // ordered alternation regardless of alternative lengths or order.
+    pattern_match!(
+        r#"{ 66 6F 6F [0-2] ( 61 62 | 58 61 ) }"#,
+        b"fooXab",
+        b"fooXa"
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] ( 68 ?? ?? ?? ?? | 6A ?? ) }"#,
+        &[0x01, 0x02, 0x68, 0x6A, 0x00, 0x00, 0x00],
+        &[0x01, 0x02, 0x68, 0x6A, 0x00, 0x00, 0x00]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-1] ( 03 04 | 03 ) }"#,
+        &[0x01, 0x02, 0x03, 0x03, 0x04],
+        &[0x01, 0x02, 0x03]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 03 [0-2] ( 1? | 3? ) }"#,
+        &[0x01, 0x02, 0x03, 0x30, 0x10],
+        &[0x01, 0x02, 0x03, 0x30]
+    );
 }
 
 #[test]
@@ -2406,6 +2432,33 @@ fn regexp_patterns_6() {
     );
 
     pattern_false!(r"/.{2,4}abc/", b"zy\nxabc");
+
+    // Ordered alternation with alternatives of different lengths (issue #903).
+    pattern_match!(
+        r"/\x63\x63.{2,2}(\x43\x31|\x00\x42|\x43)/",
+        b"\x63\x63\x00\x00\x43\x31",
+        b"\x63\x63\x00\x00\x43\x31"
+    );
+    pattern_match!(
+        r"/\x39\x62\xff.{3,4}\x7f\x30(\x62|\x80|\x80\x63)/",
+        b"\x39\x62\xff\x00\x00\x00\x7f\x30\x80\x63",
+        b"\x39\x62\xff\x00\x00\x00\x7f\x30\x80"
+    );
+    pattern_match!(r"/foo(a|ab).{0,1}x/", b"fooabxx", b"fooabx");
+    pattern_match!(r"/foo(ab|a).{0,1}x/", b"fooabxx", b"fooabxx");
+    pattern_match!(r"/foo(ab|a)(c|bcx)/", b"fooabcx", b"fooabc");
+    pattern_match!(r"/foo(a|ab)(bcx|c)/", b"fooabcx", b"fooabcx");
+    pattern_match!(r"/foo.{0,2}(ab|)/", b"fooXab", b"fooXa");
+
+    // Same-length alternations after greedy and non-greedy jumps.
+    pattern_match!(r"/foo.{0,2}(ab|Xa)/", b"fooXab", b"fooXab");
+    pattern_match!(r"/foo.{0,2}(Xa|ab)/", b"fooXab", b"fooXab");
+    pattern_match!(r"/foo.{0,2}?(ab|Xa)/", b"fooXab", b"fooXa");
+    pattern_match!(r"/foo.{0,2}?(Xa|ab)/", b"fooXab", b"fooXa");
+
+    // Greedy non-newline jumps must still stop before the first newline.
+    pattern_match!(r"/foo.{0,5}a/", b"fooabca\na", b"fooabca");
+    pattern_match!(r"/foo.{0,5}\n/", b"foox\ny\n", b"foox\n");
 }
 
 #[test]

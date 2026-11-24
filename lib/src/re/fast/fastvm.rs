@@ -93,6 +93,9 @@ impl<'r> FastVM<'r> {
     /// interleaved `0x00` byte (UTF-16LE ASCII), so step sizes and reported
     /// match lengths are doubled in bytes.
     ///
+    /// When `greedy` is `true`, variable-length jumps try longer jumps before
+    /// shorter ones; otherwise they try shorter jumps first.
+    ///
     /// Returning [`ControlFlow::Continue`] from `f` instructs the VM to keep
     /// searching for additional matches, whereas [`ControlFlow::Break`] aborts
     /// execution immediately.
@@ -101,6 +104,7 @@ impl<'r> FastVM<'r> {
         start: C,
         input: &[u8],
         wide: bool,
+        greedy: bool,
         mut f: impl FnMut(usize) -> ControlFlow<()>,
     ) where
         C: CodeLoc,
@@ -122,6 +126,10 @@ impl<'r> FastVM<'r> {
 
         if wide {
             flags.insert(JumpFlags::Wide);
+        }
+
+        if greedy {
+            flags.insert(JumpFlags::Greedy);
         }
 
         while !self.positions.is_empty() {
@@ -170,11 +178,29 @@ impl<'r> FastVM<'r> {
                     }
                 }
                 Instr::Literal(_) | Instr::MaskedLiteral(_, _) => {
-                    self.advance_pattern(&instr, input, backwards, wide);
+                    for &position in self.positions.iter() {
+                        if let Some(next_pos) = Self::match_literal_instr(
+                            &instr, input, position, backwards, wide,
+                        ) {
+                            self.next_positions.insert(next_pos);
+                        }
+                    }
                 }
                 Instr::Alternation(alternatives) => {
-                    for alt in alternatives {
-                        self.advance_pattern(&alt, input, backwards, wide);
+                    // Iterate positions in the outer loop and alternatives in
+                    // the inner loop so `next_positions` preserves match
+                    // priority order: any branch reachable from a
+                    // higher-priority position precedes branches from
+                    // lower-priority positions, and earlier alternatives
+                    // precede later ones at the same position.
+                    for &position in self.positions.iter() {
+                        for alt in alternatives {
+                            if let Some(next_pos) = Self::match_literal_instr(
+                                &alt, input, position, backwards, wide,
+                            ) {
+                                self.next_positions.insert(next_pos);
+                            }
+                        }
                     }
                 }
                 Instr::JumpExact(jump) => {
@@ -312,46 +338,38 @@ impl FastVM<'_> {
         }
     }
 
-    /// Advances all currently active offsets in `self.positions` across `instr`
-    /// ([`Instr::Literal`] or [`Instr::MaskedLiteral`]), inserting
-    /// `position + byte_len` into `self.next_positions` for each offset whose
-    /// candidate window matches.
+    /// Matches a literal instruction ([`Instr::Literal`] or
+    /// [`Instr::MaskedLiteral`]) against `input` at `position`, returning the
+    /// next position (`position + byte_len`) if it matches.
     ///
     /// Used both for top-level literal instructions and for each branch inside
     /// an [`Instr::Alternation`].
-    #[inline]
-    fn advance_pattern(
-        &mut self,
+    #[inline(always)]
+    fn match_literal_instr(
         instr: &Instr<'_>,
         input: &[u8],
+        position: usize,
         backwards: bool,
         wide: bool,
-    ) {
+    ) -> Option<usize> {
         let step = if wide { 2 } else { 1 };
 
         match *instr {
             Instr::Literal(literal) => {
                 let byte_len = step * literal.len();
-                for &position in self.positions.iter() {
-                    if let Some(window) = Self::candidate_window(
-                        input, position, byte_len, backwards,
-                    ) && Self::match_literal(window, literal, wide)
-                    {
-                        self.next_positions.insert(position + byte_len);
-                    }
-                }
+                let window = Self::candidate_window(
+                    input, position, byte_len, backwards,
+                )?;
+                Self::match_literal(window, literal, wide)
+                    .then_some(position + byte_len)
             }
             Instr::MaskedLiteral(literal, mask) => {
                 let byte_len = step * literal.len();
-                for &position in self.positions.iter() {
-                    if let Some(window) = Self::candidate_window(
-                        input, position, byte_len, backwards,
-                    ) && Self::match_masked_literal(
-                        window, literal, mask, wide,
-                    ) {
-                        self.next_positions.insert(position + byte_len);
-                    }
-                }
+                let window = Self::candidate_window(
+                    input, position, byte_len, backwards,
+                )?;
+                Self::match_masked_literal(window, literal, mask, wide)
+                    .then_some(position + byte_len)
             }
             // The only valid instructions here (including inside Alternation)
             // are Literal and MaskedLiteral.
@@ -421,19 +439,17 @@ impl FastVM<'_> {
         true
     }
 
-    /// Advances a single forward `position` across a variable-length jump
-    /// `range` (`[min..=max]` steps, scaled by 2 when [`JumpFlags::Wide`] is
-    /// set), inserting reachable target offsets into `next_positions`.
+    /// Executes a forward variable-length jump from `position`, inserting all
+    /// reachable landing offsets into `next_positions`.
     ///
-    /// `input` is the remaining slice starting at `position`
-    /// (`&full_input[position..]`). When `byte_after_jmp` is `Some(b)` (the
-    /// known leading byte of the instruction immediately following the jump),
-    /// SIMD `memchr` / `memchr2` is used to record only offsets within the jump
-    /// window where `b` actually occurs; when `byte_after_jmp` is `None`,
-    /// every valid step-aligned jump length in `n..=min(m, input.len())` is
-    /// inserted. When [`JumpFlags::AcceptNewlines`] is not set, any `0x0A`
-    /// byte in the mandatory prefix or jump window halts further expansion
-    /// from `position`.
+    /// `input` is the unscanned slice starting at `position`. If the next
+    /// instruction starts with a known byte (`byte_after_jmp`), only positions
+    /// where that byte appears are added; otherwise every valid offset in
+    /// `range` is added.
+    ///
+    /// Positions are inserted longest-jump-first when [`JumpFlags::Greedy`] is
+    /// set and shortest-jump-first otherwise. When [`JumpFlags::AcceptNewlines`]
+    /// is unset, the jump stops before any `0x0A` byte.
     #[inline]
     fn jump_fwd(
         input: &[u8],
@@ -445,6 +461,7 @@ impl FastVM<'_> {
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
         let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
+        let greedy = flags.contains(JumpFlags::Greedy);
 
         let n = (*range.start() as usize).saturating_mul(step);
         let m = (*range.end() as usize).saturating_mul(step);
@@ -464,8 +481,14 @@ impl FastVM<'_> {
             {
                 max = nl;
             }
-            for len in (n..=max).step_by(step) {
-                next_positions.insert(position + len);
+            if greedy {
+                for len in (n..max + 1).step_by(step).rev() {
+                    next_positions.insert(position + len);
+                }
+            } else {
+                for len in (n..=max).step_by(step) {
+                    next_positions.insert(position + len);
+                }
             }
             return;
         };
@@ -486,7 +509,7 @@ impl FastVM<'_> {
             return;
         }
 
-        let jmp_range = &input[range_min..range_max];
+        let mut jmp_range = &input[range_min..range_max];
 
         let mut on_match_found = |offset: usize| {
             // In wide mode every character of the pattern consumes two bytes,
@@ -500,46 +523,60 @@ impl FastVM<'_> {
         };
 
         if !accept_newlines {
-            // Search for the literal byte and the newline at the same
-            // time. Any offset found before the newline is a position
-            // that needs to be verified, but once the newline is found
-            // no more positions will match and we can return.
-            //
-            // There's an edge case when the literal byte is also a
-            // newline: the first newline itself is a valid position for
-            // the literal, but the jump still cannot cross it, so we
-            // must return immediately after recording it.
-            for offset in memchr::memchr2_iter(b, 0x0A, jmp_range) {
-                if jmp_range[offset] == b {
+            if greedy {
+                // When newlines are disallowed, the jump cannot cross the
+                // first 0x0A in `jmp_range`. Truncate before scanning in
+                // reverse (longest-jump-first). If `b == 0x0A`, the first
+                // newline itself is a valid target position for the literal
+                // byte after the jump, so include it in the slice.
+                if let Some(nl) = memchr::memchr(0x0A, jmp_range) {
+                    let end = if b == 0x0A { nl + 1 } else { nl };
+                    jmp_range = &jmp_range[..end];
+                }
+                for offset in memchr::memrchr_iter(b, jmp_range) {
                     on_match_found(offset);
                 }
-                if jmp_range[offset] == 0x0A {
-                    return;
+            } else {
+                // Search for the literal byte and the newline at the same
+                // time. Any offset found before the newline is a position
+                // that needs to be verified, but once the newline is found
+                // no more positions will match and we can return.
+                //
+                // There's an edge case when the literal byte is also a
+                // newline: the first newline itself is a valid position for
+                // the literal, but the jump still cannot cross it, so we
+                // must return immediately after recording it.
+                for offset in memchr::memchr2_iter(b, 0x0A, jmp_range) {
+                    if jmp_range[offset] == b {
+                        on_match_found(offset);
+                    }
+                    if jmp_range[offset] == 0x0A {
+                        return;
+                    }
                 }
             }
+        } else if greedy {
+            for offset in memchr::memrchr_iter(b, jmp_range) {
+                on_match_found(offset);
+            }
         } else {
-            // If newlines are accepted, we can search for the literal
-            // byte alone. There are potential matches only at the
-            // positions where the byte is found.
             for offset in memchr::memchr_iter(b, jmp_range) {
-                on_match_found(offset)
+                on_match_found(offset);
             }
         }
     }
 
-    /// Advances a single backward `position` leftward across a variable-length
-    /// jump `range` (`[min..=max]` steps, scaled by 2 when [`JumpFlags::Wide`]
-    /// is set), inserting reachable target distances into `next_positions`.
+    /// Executes a backward variable-length jump from `position`, inserting all
+    /// reachable landing distances into `next_positions`.
     ///
-    /// `input` is the prefix preceding `position`
-    /// (`&full_input[..full_input.len() - position]`). When
-    /// `expected_after_jump` is `Some(b)` (the known trailing byte of the
-    /// preceding sub-pattern in backward execution), reverse SIMD `memrchr` /
-    /// `memrchr2` scans right-to-left so only candidate positions preceded by
-    /// `b` are inserted; when `expected_after_jump` is `None`, every valid
-    /// step-aligned jump length in `n..=min(m, input.len())` is inserted. When
-    /// [`JumpFlags::AcceptNewlines`] is not set, any `0x0A` byte halts further
-    /// expansion from `position`.
+    /// `input` is the unscanned prefix ending at `position`. If the preceding
+    /// instruction ends with a known byte (`expected_after_jump`), only
+    /// positions immediately preceded by that byte are added; otherwise every
+    /// valid offset in `range` is added.
+    ///
+    /// Positions are inserted longest-jump-first when [`JumpFlags::Greedy`] is
+    /// set and shortest-jump-first otherwise. When [`JumpFlags::AcceptNewlines`]
+    /// is unset, the jump stops before any `0x0A` byte.
     #[inline]
     fn jump_bck(
         input: &[u8],
@@ -551,6 +588,7 @@ impl FastVM<'_> {
     ) {
         let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
         let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
+        let greedy = flags.contains(JumpFlags::Greedy);
 
         let n = (*range.start() as usize).saturating_mul(step);
         let m = (*range.end() as usize).saturating_mul(step);
@@ -594,8 +632,14 @@ impl FastVM<'_> {
             {
                 max = max - nl - 1;
             }
-            for len in (n..=max).step_by(step) {
-                next_positions.insert(position + len);
+            if greedy {
+                for len in (n..max + 1).step_by(step).rev() {
+                    next_positions.insert(position + len);
+                }
+            } else {
+                for len in (n..=max).step_by(step) {
+                    next_positions.insert(position + len);
+                }
             }
             return;
         };
@@ -616,16 +660,16 @@ impl FastVM<'_> {
             return;
         }
 
-        let jmp_range = &input[range_min..range_max];
+        let mut jmp_range = &input[range_min..range_max];
 
-        let mut on_match_found = |offset: usize| {
+        let mut on_match_found = |jmp_range_len: usize, offset: usize| {
             // As in `jump_fwd`, a jump in wide mode can only consume an even
-            // number of bytes, and `memrchr` also finds `b` at the zero
-            // padding of a character. The test is on `jump` rather than on
+            // number of bytes, and `memrchr` / `memchr` also finds `b` at the
+            // zero padding of a character. The test is on `jump` rather than on
             // `offset` because `range_min` saturates at 0 when `input` is
             // shorter than the jump, which leaves `jmp_range` with a length
             // that is not a multiple of `step`.
-            if let Some(jump) = jmp_range.len().checked_sub(offset + step)
+            if let Some(jump) = jmp_range_len.checked_sub(offset + step)
                 && jump.is_multiple_of(step)
             {
                 next_positions.insert(position + n + jump);
@@ -633,29 +677,47 @@ impl FastVM<'_> {
         };
 
         if !accept_newlines {
-            // Search for the literal byte and the newline at the same
-            // time. Any offset found before the newline is a position
-            // that needs to be verified, but once the newline is found
-            // no more positions will match and we can return.
-            //
-            // There's an edge case when the literal byte is also a
-            // newline: the first newline itself is a valid position for
-            // the literal, but the jump still cannot cross it, so we
-            // must return immediately after recording it.
-            for offset in memchr::memrchr2_iter(b, 0x0A, jmp_range) {
-                if jmp_range[offset] == b {
-                    on_match_found(offset);
+            if greedy {
+                // When newlines are disallowed, the backward jump cannot cross
+                // the rightmost 0x0A in `jmp_range`. Trim everything to its
+                // left before scanning left-to-right (longest-jump-first). If
+                // `b == 0x0A`, the rightmost newline itself is a valid target
+                // position for the literal byte preceding the jump, so keep it.
+                if let Some(nl) = memchr::memrchr(0x0A, jmp_range) {
+                    let start = if b == 0x0A { nl } else { nl + 1 };
+                    jmp_range = &jmp_range[start..];
                 }
-                if jmp_range[offset] == 0x0A {
-                    return;
+                for offset in memchr::memchr_iter(b, jmp_range) {
+                    on_match_found(jmp_range.len(), offset);
+                }
+            } else {
+                // Search for the literal byte and the newline at the same
+                // time. Any offset found before the newline is a position
+                // that needs to be verified, but once the newline is found
+                // no more positions will match and we can return.
+                //
+                // There's an edge case when the literal byte is also a
+                // newline: the first newline itself is a valid position for
+                // the literal, but the jump still cannot cross it, so we
+                // must return immediately after recording it.
+                for offset in memchr::memrchr2_iter(b, 0x0A, jmp_range) {
+                    if jmp_range[offset] == b {
+                        on_match_found(jmp_range.len(), offset);
+                    }
+                    if jmp_range[offset] == 0x0A {
+                        return;
+                    }
                 }
             }
         } else {
-            // If newlines are accepted, we can search for the literal
-            // byte alone. There are potential matches only at the
-            // positions where the byte is found.
-            for offset in memchr::memrchr_iter(b, jmp_range) {
-                on_match_found(offset)
+            if greedy {
+                for offset in memchr::memchr_iter(b, jmp_range) {
+                    on_match_found(jmp_range.len(), offset);
+                }
+            } else {
+                for offset in memchr::memrchr_iter(b, jmp_range) {
+                    on_match_found(jmp_range.len(), offset);
+                }
             }
         }
     }
@@ -666,6 +728,7 @@ bitflags! {
     struct JumpFlags: u8  {
         const AcceptNewlines = 0x01;
         const Wide           = 0x02;
+        const Greedy         = 0x04;
     }
 }
 
@@ -698,10 +761,16 @@ mod tests {
 
             let mut matched_len = None;
             let mut vm = FastVM::new(&code).scan_limit(100_000);
-            vm.try_match(atoms[0].fwd_code.unwrap(), &input, false, |len| {
-                matched_len = Some(len);
-                ControlFlow::Break(())
-            });
+            vm.try_match(
+                atoms[0].fwd_code.unwrap(),
+                &input,
+                false,
+                false,
+                |len| {
+                    matched_len = Some(len);
+                    ControlFlow::Break(())
+                },
+            );
             assert_eq!(matched_len, Some(input.len()));
 
             // Backward jump > u16::MAX: `{ 01 [min-max] 02 03 }`.
@@ -720,10 +789,16 @@ mod tests {
 
             let mut matched_bck_len = None;
             let mut vm = FastVM::new(&code).scan_limit(100_000);
-            vm.try_match(atoms[0].bck_code.unwrap(), &prefix, false, |len| {
-                matched_bck_len = Some(len);
-                ControlFlow::Break(())
-            });
+            vm.try_match(
+                atoms[0].bck_code.unwrap(),
+                &prefix,
+                false,
+                false,
+                |len| {
+                    matched_bck_len = Some(len);
+                    ControlFlow::Break(())
+                },
+            );
             assert_eq!(matched_bck_len, Some(prefix.len()));
         }
     }
@@ -748,10 +823,16 @@ mod tests {
 
         let mut matched_len = None;
         let mut vm = FastVM::new(&code).scan_limit(600_000);
-        vm.try_match(atoms[0].fwd_code.unwrap(), &input, false, |len| {
-            matched_len = Some(len);
-            ControlFlow::Break(())
-        });
+        vm.try_match(
+            atoms[0].fwd_code.unwrap(),
+            &input,
+            false,
+            false,
+            |len| {
+                matched_len = Some(len);
+                ControlFlow::Break(())
+            },
+        );
         assert_eq!(matched_len, Some(input.len()));
     }
 }
