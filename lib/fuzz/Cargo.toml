@@ -70,3 +70,21 @@ name = "dex_parser"
 path = "fuzz_targets/dex_parser.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "olecf_parser"
+path = "fuzz_targets/olecf_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "msi_parser"
+path = "fuzz_targets/msi_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "zip_parser"
+path = "fuzz_targets/zip_parser.rs"
+test = false
+doc = false
