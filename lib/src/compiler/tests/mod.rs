@@ -11,6 +11,134 @@ use crate::types::Type;
 use crate::{Compiler, Rules, Scanner, SourceCode, compile};
 
 #[test]
+fn rule_origin() {
+    let mut compiler = Compiler::new();
+    compiler
+        .add_source(
+            SourceCode::from("rule a { condition: true }")
+                .with_origin("a.yar"),
+        )
+        .unwrap();
+    compiler.add_source("rule b { condition: true }").unwrap();
+    compiler
+        .add_source(
+            SourceCode::from("rule e { condition: true }").with_origin(""),
+        )
+        .unwrap();
+    compiler.new_namespace("ns");
+    compiler
+        .add_source(
+            SourceCode::from("rule d { condition: true }")
+                .with_origin("d.yar"),
+        )
+        .unwrap();
+    compiler.add_source("rule f { condition: true }").unwrap();
+    compiler
+        .add_source(SourceCode::from("// no rules").with_origin("unused.yar"))
+        .unwrap();
+    let rules = compiler.build();
+    assert_eq!(rules.origins.len(), 3);
+    let expected = [
+        ("a", Some("a.yar")),
+        ("b", None),
+        ("e", Some("")),
+        ("d", Some("d.yar")),
+        ("f", None),
+    ];
+    for rule in rules.iter() {
+        assert_eq!(
+            rule.origin(),
+            expected
+                .iter()
+                .find(|(id, _)| *id == rule.identifier())
+                .unwrap()
+                .1
+        );
+    }
+    assert_eq!(rules.iter().count(), 5);
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"").unwrap();
+    assert_eq!(results.matching_rules().len(), 5);
+    for rule in results.matching_rules() {
+        assert_eq!(
+            rule.origin(),
+            expected
+                .iter()
+                .find(|(id, _)| *id == rule.identifier())
+                .unwrap()
+                .1
+        );
+    }
+    let restored = Rules::deserialize(rules.serialize().unwrap()).unwrap();
+    assert_eq!(restored.iter().count(), 5);
+    assert!(restored.iter().all(|rule| rule.origin().is_none()));
+    let mut scanner = Scanner::new(&restored);
+    let results = scanner.scan(b"").unwrap();
+    assert_eq!(results.matching_rules().len(), 5);
+    assert!(results.matching_rules().all(|rule| rule.origin().is_none()));
+
+    let source = "rule same { condition: true }";
+    let mut with_origin = Compiler::new();
+    with_origin
+        .add_source(SourceCode::from(source).with_origin("label"))
+        .unwrap();
+    let mut without_origin = Compiler::new();
+    without_origin.add_source(source).unwrap();
+    assert_eq!(
+        with_origin.build().serialize().unwrap(),
+        without_origin.build().serialize().unwrap()
+    );
+}
+
+#[test]
+fn rule_origin_includes() {
+    let mut compiler = Compiler::new();
+    compiler.add_include_dir("src/compiler/tests/testdata/includes");
+    let source = concat!(
+        "include \"included_relative.yar\"\n",
+        "rule after_nested { condition: true }",
+    );
+    compiler
+        .add_source(SourceCode::from(source).with_origin("main.yar"))
+        .unwrap();
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"").unwrap();
+    let found: std::collections::HashMap<_, _> = results
+        .matching_rules()
+        .map(|rule| (rule.identifier(), rule.origin()))
+        .collect();
+    assert_eq!(
+        found["included"],
+        Some("src/compiler/tests/testdata/includes/included_ok.yar")
+    );
+    assert_eq!(found["after_nested"], Some("main.yar"));
+
+    let mut compiler = Compiler::new();
+    compiler.add_include_dir("src/compiler/tests/testdata/includes");
+    let source = concat!(
+        "rule before { condition: true }\n",
+        "include \"included_error.yar\"\n",
+        "rule after { condition: true }",
+    );
+    assert!(
+        compiler
+            .add_source(SourceCode::from(source).with_origin("main.yar"))
+            .is_err()
+    );
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"").unwrap();
+    let found: std::collections::HashMap<_, _> = results
+        .matching_rules()
+        .map(|rule| (rule.identifier(), rule.origin()))
+        .collect();
+    assert_eq!(found.len(), 2);
+    assert_eq!(found["before"], Some("main.yar"));
+    assert_eq!(found["after"], Some("main.yar"));
+}
+
+#[test]
 fn serialization() {
     assert!(matches!(
         Rules::deserialize([]).err().unwrap(),

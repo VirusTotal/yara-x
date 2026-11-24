@@ -38,6 +38,10 @@ impl CodeLoc {
     pub(crate) fn new(source_id: Option<SourceId>, span: Span) -> Self {
         Self { source_id, span }
     }
+
+    pub(crate) fn source_id(&self) -> Option<SourceId> {
+        self.source_id
+    }
 }
 
 /// A patch that be applied for fixing a warning or error.
@@ -556,6 +560,22 @@ impl Default for ReportBuilder {
 }
 
 impl ReportBuilder {
+    pub(crate) fn origins(
+        &self,
+        source_ids: impl Iterator<Item = SourceId>,
+    ) -> rustc_hash::FxHashMap<SourceId, String> {
+        let cache = self.code_cache.read();
+        let mut origins = rustc_hash::FxHashMap::default();
+        for id in source_ids {
+            if let Some(origin) =
+                cache.get(&id).and_then(|entry| entry.origin.as_ref())
+            {
+                origins.entry(id).or_insert_with(|| origin.clone());
+            }
+        }
+        origins
+    }
+
     /// Creates a new instance of [`ReportBuilder`].
     pub fn new() -> Self {
         Self {

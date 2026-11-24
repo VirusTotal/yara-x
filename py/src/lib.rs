@@ -1251,6 +1251,7 @@ impl ScanResults {
 struct Rule {
     identifier: String,
     namespace: String,
+    origin: Option<String>,
     tags: Py<PyTuple>,
     metadata: Py<PyTuple>,
     patterns: Py<PyTuple>,
@@ -1268,6 +1269,19 @@ impl Rule {
     #[getter]
     fn namespace(&self) -> &str {
         self.namespace.as_str()
+    }
+
+    /// The origin of the source code that defined this rule. If the source
+    /// was added with an origin, that origin is returned verbatim, and an
+    /// empty string is a valid origin. A rule defined in an included file
+    /// returns the label shown in error messages, relative to the working
+    /// directory at compile time when possible. Otherwise the origin is
+    /// `None`. Origins are not serialized, so rules obtained by
+    /// deserialization never have one. Serializing does not change the
+    /// original rules.
+    #[getter]
+    fn origin(&self) -> Option<&str> {
+        self.origin.as_deref()
     }
 
     /// Returns the rule's tags.
@@ -1482,6 +1496,7 @@ fn rule_to_py(py: Python, rule: yrx::Rule) -> PyResult<Py<Rule>> {
         Rule {
             identifier: rule.identifier().to_string(),
             namespace: rule.namespace().to_string(),
+            origin: rule.origin().map(str::to_string),
             tags: PyTuple::new(py, rule.tags().map(|tag| tag.identifier()))?
                 .unbind(),
             metadata: PyTuple::new(

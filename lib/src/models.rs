@@ -40,6 +40,18 @@ impl<'a, 'r> Rule<'a, 'r> {
         self.rules.ident_pool().get(self.rule_info.namespace_ident_id).unwrap()
     }
 
+    /// The origin of the source code that defined this rule. If the source
+    /// was added with an origin using [`crate::SourceCode::with_origin`], that
+    /// origin is returned verbatim, and an empty string is a valid origin. A
+    /// rule defined in an included file returns the label shown in error
+    /// messages, relative to the working directory at compile time when
+    /// possible. Otherwise the origin is `None`. Origins are not serialized,
+    /// so rules obtained by deserialization never have one. Serializing does
+    /// not change the original rules.
+    pub fn origin(&self) -> Option<&'r str> {
+        self.rules.rule_origin(self.rule_info)
+    }
+
     /// Returns the metadata associated to this rule.
     pub fn metadata(&self) -> Metadata<'a, 'r> {
         Metadata {
