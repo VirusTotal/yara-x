@@ -488,8 +488,15 @@ impl FastVM<'_> {
 
         let jmp_range = &input[range_min..range_max];
 
-        let mut on_match_found = |offset| {
-            next_positions.insert(position + range_min + offset);
+        let mut on_match_found = |offset: usize| {
+            // In wide mode every character of the pattern consumes two bytes,
+            // so a jump can only consume an even number of them. `memchr`
+            // also finds `b` at odd offsets, where it is not the first byte of
+            // a character but the zero padding of the previous one; jumping
+            // there would match the rest of the pattern one byte off.
+            if (range_min + offset).is_multiple_of(step) {
+                next_positions.insert(position + range_min + offset);
+            }
         };
 
         if !accept_newlines {
@@ -611,8 +618,16 @@ impl FastVM<'_> {
 
         let jmp_range = &input[range_min..range_max];
 
-        let mut on_match_found = |offset| {
-            if let Some(jump) = jmp_range.len().checked_sub(offset + step) {
+        let mut on_match_found = |offset: usize| {
+            // As in `jump_fwd`, a jump in wide mode can only consume an even
+            // number of bytes, and `memrchr` also finds `b` at the zero
+            // padding of a character. The test is on `jump` rather than on
+            // `offset` because `range_min` saturates at 0 when `input` is
+            // shorter than the jump, which leaves `jmp_range` with a length
+            // that is not a multiple of `step`.
+            if let Some(jump) = jmp_range.len().checked_sub(offset + step)
+                && jump.is_multiple_of(step)
+            {
                 next_positions.insert(position + n + jump);
             }
         };
