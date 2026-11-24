@@ -197,7 +197,9 @@ impl<'r> FastVM<'r> {
                             if let Some(next_pos) =
                                 position.checked_add(jump_bytes)
                                 && let Some(jump_range) =
-                                    input.get(position..next_pos)
+                                    Self::candidate_window(
+                                        input, position, jump_bytes, backwards,
+                                    )
                                 && memchr::memchr(0x0A, jump_range).is_none()
                             {
                                 self.next_positions.insert(next_pos);
@@ -473,13 +475,16 @@ impl FastVM<'_> {
                 // no more positions will match and we can return.
                 //
                 // There's an edge case when the literal byte is also a
-                // newline, in such cases any newline found most also be
-                // verified.
+                // newline: the first newline itself is a valid position for
+                // the literal, but the jump still cannot cross it, so we
+                // must return immediately after recording it.
                 for offset in memchr::memchr2_iter(b, 0x0A, jmp_range) {
-                    if b != 0x0A && jmp_range[offset] == 0x0A {
+                    if jmp_range[offset] == b {
+                        on_match_found(offset);
+                    }
+                    if jmp_range[offset] == 0x0A {
                         return;
                     }
-                    on_match_found(offset)
                 }
             }
             Some(b) if accept_newlines => {
@@ -580,13 +585,16 @@ impl FastVM<'_> {
                 // no more positions will match and we can return.
                 //
                 // There's an edge case when the literal byte is also a
-                // newline, in such cases any newline found most also be
-                // verified.
+                // newline: the first newline itself is a valid position for
+                // the literal, but the jump still cannot cross it, so we
+                // must return immediately after recording it.
                 for offset in memchr::memrchr2_iter(b, 0x0A, jmp_range) {
-                    if b != 0x0A && jmp_range[offset] == 0x0A {
+                    if jmp_range[offset] == b {
+                        on_match_found(offset);
+                    }
+                    if jmp_range[offset] == 0x0A {
                         return;
                     }
-                    on_match_found(offset)
                 }
             }
             Some(b) if accept_newlines => {
