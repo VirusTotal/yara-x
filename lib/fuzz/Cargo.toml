@@ -12,6 +12,10 @@ libfuzzer-sys = "0.4"
 
 [dependencies.yara-x]
 path = ".."
+# The `olecf`, `msi` and `vba` modules are not in `default-modules`, so
+# without this the corresponding targets run against a module that is not
+# registered: `mods::invoke` returns `None` and the parser is never reached.
+features = ["olecf-module", "msi-module", "vba-module"]
 
 # Prevent this from interfering with workspaces
 [workspace]
@@ -68,5 +72,23 @@ doc = false
 [[bin]]
 name = "dex_parser"
 path = "fuzz_targets/dex_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "olecf_parser"
+path = "fuzz_targets/olecf_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "msi_parser"
+path = "fuzz_targets/msi_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "zip_parser"
+path = "fuzz_targets/zip_parser.rs"
 test = false
 doc = false
