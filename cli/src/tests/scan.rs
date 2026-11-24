@@ -1142,3 +1142,148 @@ fn exclusions_are_case_insensitive_on_windows() {
         .stdout(predicate::str::contains("Keep"))
         .stdout(predicate::str::contains("OneDrive").not());
 }
+
+#[cfg(unix)]
+#[test]
+fn symlinks_to_files_are_followed() {
+    let temp = TempDir::new().unwrap();
+    temp.child("rules.yar")
+        .write_str(r#"rule marker { strings: $a = "MARKER" condition: $a }"#)
+        .unwrap();
+
+    let real_sample = temp.child("real/sample.txt");
+    real_sample.write_str("hello MARKER").unwrap();
+
+    let real_large = temp.child("real/large.txt");
+    real_large.write_str(&format!("MARKER{}", "x".repeat(200))).unwrap();
+
+    let real_nested = temp.child("real/nested/hidden.txt");
+    real_nested.write_str("nested MARKER").unwrap();
+
+    let links_dir = temp.child("links");
+    links_dir.create_dir_all().unwrap();
+    links_dir.child("regular.txt").write_str("regular MARKER").unwrap();
+
+    std::os::unix::fs::symlink(
+        real_sample.path(),
+        links_dir.child("sample.txt").path(),
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(
+        real_large.path(),
+        links_dir.child("large.txt").path(),
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(
+        temp.child("real/nested").path(),
+        links_dir.child("subdir_link").path(),
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(
+        temp.child("real/nonexistent.txt").path(),
+        links_dir.child("dangling.txt").path(),
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(
+        links_dir.child("loop_b.txt").path(),
+        links_dir.child("loop_a.txt").path(),
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(
+        links_dir.child("loop_a.txt").path(),
+        links_dir.child("loop_b.txt").path(),
+    )
+    .unwrap();
+
+    // Non-recursive scan follows file symlinks and silently skips directory,
+    // dangling, and cyclic symlinks.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args(["scan", "rules.yar", "links"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("links/sample.txt"))
+        .stdout(predicate::str::contains("links/large.txt"))
+        .stdout(predicate::str::contains("links/regular.txt"))
+        .stdout(predicate::str::contains("hidden.txt").not())
+        .stderr("");
+
+    // Recursive scan also follows file symlinks without descending into
+    // symlinked directories.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args(["scan", "-r", "rules.yar", "links"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("links/sample.txt"))
+        .stdout(predicate::str::contains("links/large.txt"))
+        .stdout(predicate::str::contains("links/regular.txt"))
+        .stdout(predicate::str::contains("hidden.txt").not())
+        .stderr("");
+
+    // `--skip-larger` checks the target file's size, not the symlink size.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args(["scan", "--skip-larger", "50", "rules.yar", "links"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("links/sample.txt"))
+        .stdout(predicate::str::contains("links/regular.txt"))
+        .stdout(predicate::str::contains("links/large.txt").not())
+        .stderr("");
+
+    // Excluding a symlink path skips it without affecting sibling entries.
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args(["scan", "--exclude", "links/sample.txt", "rules.yar", "links"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("links/regular.txt"))
+        .stdout(predicate::str::contains("links/large.txt"))
+        .stdout(predicate::str::contains("links/sample.txt").not())
+        .stderr("");
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinked_rules_in_directory_are_compiled() {
+    let temp = TempDir::new().unwrap();
+
+    let real_rule = temp.child("real_rules/marker.yar");
+    real_rule
+        .write_str(r#"rule marker { strings: $a = "MARKER" condition: $a }"#)
+        .unwrap();
+
+    let sample = temp.child("sample.txt");
+    sample.write_str("hello MARKER").unwrap();
+
+    let rules_dir = temp.child("rules_dir");
+    rules_dir.create_dir_all().unwrap();
+
+    std::os::unix::fs::symlink(
+        real_rule.path(),
+        rules_dir.child("marker.yar").path(),
+    )
+    .unwrap();
+    // Dangling rule symlink should be silently skipped rather than aborting.
+    std::os::unix::fs::symlink(
+        temp.child("real_rules/missing.yar").path(),
+        rules_dir.child("dangling.yar").path(),
+    )
+    .unwrap();
+    // Symlinked directory should not be descended into (otherwise `marker`
+    // would be compiled twice and fail with a duplicate rule error).
+    std::os::unix::fs::symlink(
+        temp.child("real_rules").path(),
+        rules_dir.child("sub_link").path(),
+    )
+    .unwrap();
+
+    Command::new(cargo_bin!("yr"))
+        .current_dir(temp.path())
+        .args(["scan", "rules_dir", "sample.txt"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("marker sample.txt"))
+        .stderr("");
+}
