@@ -75,7 +75,8 @@ typedef enum YRX_RESULT {
   // An error indicating that a scanner that was already in multi-block
   // mode has been used as a standard scanner.
   YRX_INVALID_STATE,
-  // An error occurred while serializing/deserializing YARA rules.
+  // An error occurred while serializing or deserializing data, such as
+  // compiled YARA rules or the output of a YARA module.
   YRX_SERIALIZATION_ERROR,
   // An error returned when a rule doesn't have any metadata.
   YRX_NO_METADATA,
@@ -246,6 +247,21 @@ typedef void (*YRX_IMPORT_CALLBACK)(const char *module_name,
 // being logged. The function can print the message to stdout, append it to a
 // file, etc. If no callback is set these messages are ignored.
 typedef void (*YRX_CONSOLE_CALLBACK)(const char *message);
+
+// Callback function passed to [`yrx_scanner_on_module_output`].
+//
+// Receives the name of a YARA module (e.g: "pe") and the module's output
+// serialized as a JSON object. Both strings are read-only, NUL-terminated
+// and borrowed for this invocation only: copy them if you need them after
+// the callback returns. `json_len` is the length of `json` in bytes, not
+// counting the terminator. `bytes` fields are encoded as
+// `{ "$bytes": ["<base64>"] }`, timestamps as `{ "$timestamp": [<secs>] }`.
+// `uint64` values above INT64_MAX appear as negative numbers, and a
+// non-finite `float`/`double` value makes `json` invalid JSON.
+typedef void (*YRX_MODULE_OUTPUT_CALLBACK)(const char *module_name,
+                                           const char *json,
+                                           size_t json_len,
+                                           void *user_data);
 
 // Callback function passed to [`yrx_scanner_iter_slowest_rules`].
 //
@@ -916,6 +932,29 @@ enum YRX_RESULT yrx_scanner_set_global_json(struct YRX_SCANNER *scanner,
 // Sets the callback for console module.
 enum YRX_RESULT yrx_scanner_on_console_log(struct YRX_SCANNER *scanner,
                                            YRX_CONSOLE_CALLBACK callback);
+
+// Sets a callback that receives the output produced by each YARA module
+// during a scan.
+//
+// When [`yrx_scanner_scan`] or [`yrx_scanner_scan_file`] succeeds, the
+// callback is invoked once per module that produced output, in no
+// particular order, after all calls to the matching-rule callback. Only
+// modules imported by the rules produce output, including outputs set with
+// [`yrx_scanner_set_module_output`]. It is never invoked when the core scan
+// fails or times out, or in block scanning mode, where modules don't run.
+//
+// Callbacks run synchronously on the calling thread, before the scan
+// function returns. The callback and `user_data` must stay valid until they
+// are replaced, cleared with a null callback, or the scanner is destroyed.
+// The callback must not scan with, reconfigure or destroy the same scanner.
+//
+// Outputs are serialized only while a callback is set. If one can't be
+// serialized, the scan function returns `YRX_SERIALIZATION_ERROR` and sets
+// the last error. Callbacks already delivered for that scan are not undone,
+// and the remaining outputs are not delivered.
+enum YRX_RESULT yrx_scanner_on_module_output(struct YRX_SCANNER *scanner,
+                                             YRX_MODULE_OUTPUT_CALLBACK callback,
+                                             void *user_data);
 
 // Iterates over the slowest N rules, calling the callback for each rule.
 //

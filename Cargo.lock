@@ -4573,6 +4573,7 @@ dependencies = [
  "cbindgen",
  "serde_json",
  "yara-x",
+ "yara-x-proto",
 ]
 
 [[package]]

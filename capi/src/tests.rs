@@ -29,6 +29,286 @@ use crate::{
 
 use std::ffi::{CStr, c_char, c_void};
 
+extern "C" fn on_output(
+    name: *const c_char,
+    json: *const c_char,
+    len: usize,
+    data: *mut c_void,
+) {
+    unsafe {
+        let events = &mut *(data as *mut Vec<(String, serde_json::Value)>);
+        let name = CStr::from_ptr(name).to_str().unwrap().to_owned();
+        let bytes = CStr::from_ptr(json).to_bytes();
+        assert_eq!(bytes.len(), len);
+        events.push((name, serde_json::from_slice(bytes).unwrap()));
+    }
+}
+
+extern "C" fn on_output_rule(_rule: *const YRX_RULE, data: *mut c_void) {
+    unsafe {
+        (&mut *(data as *mut Vec<(String, serde_json::Value)>))
+            .push(("rule:t".into(), serde_json::Value::Null))
+    }
+}
+
+#[test]
+fn capi_module_output_order_and_blocks() {
+    unsafe {
+        let mut rules = std::ptr::null_mut();
+        assert_eq!(
+            yrx_compile(
+                c"import \"pe\" rule t { condition: true }".as_ptr(),
+                &mut rules
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let mut scanner = std::ptr::null_mut();
+        assert_eq!(
+            yrx_scanner_create(rules, &mut scanner),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let mut events = Vec::<(String, serde_json::Value)>::new();
+        let data = &mut events as *mut _ as *mut c_void;
+        assert_eq!(
+            yrx_scanner_on_matching_rule(scanner, Some(on_output_rule), data),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            crate::yrx_scanner_on_module_output(
+                scanner,
+                Some(on_output),
+                data
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            yrx_scanner_scan(scanner, std::ptr::null(), 0),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            events.iter().map(|e| e.0.as_str()).collect::<Vec<_>>(),
+            ["rule:t", "pe"]
+        );
+        events.clear();
+        assert_eq!(
+            yrx_scanner_scan_file(scanner, c"Cargo.toml".as_ptr()),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            events.iter().map(|e| e.0.as_str()).collect::<Vec<_>>(),
+            ["rule:t", "pe"]
+        );
+        events.clear();
+        assert_eq!(
+            yrx_scanner_scan_block(scanner, 0, std::ptr::null(), 0),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(yrx_scanner_finish(scanner), YRX_RESULT::YRX_SUCCESS);
+        assert!(events.iter().all(|e| e.0 != "pe"));
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
+
+        assert_eq!(
+            yrx_compile(
+                c"import \"cuckoo\" rule t { condition: false }".as_ptr(),
+                &mut rules
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            yrx_scanner_create(rules, &mut scanner),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        events.clear();
+        assert_eq!(
+            crate::yrx_scanner_on_module_output(
+                scanner,
+                Some(on_output),
+                data
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let output = b"\x08\x01\x80\x01\x01";
+        assert_eq!(
+            yrx_scanner_set_module_output(
+                scanner,
+                c"pe".as_ptr(),
+                output.as_ptr(),
+                output.len()
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            yrx_scanner_scan(scanner, std::ptr::null(), 0),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            events.iter().map(|e| e.0.as_str()).collect::<Vec<_>>(),
+            ["cuckoo"]
+        );
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
+    }
+}
+
+#[test]
+fn capi_module_output_timeout_clears_override() {
+    unsafe {
+        let mut rules = std::ptr::null_mut();
+        assert_eq!(
+            yrx_compile(
+                c"import \"pe\" rule t { condition: pe.is_pe }".as_ptr(),
+                &mut rules
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let mut scanner = std::ptr::null_mut();
+        assert_eq!(
+            yrx_scanner_create(rules, &mut scanner),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let mut events = Vec::<(String, serde_json::Value)>::new();
+        let data = &mut events as *mut _ as *mut c_void;
+        assert_eq!(
+            crate::yrx_scanner_on_module_output(
+                scanner,
+                Some(on_output),
+                data
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        for scan_file in [false, true] {
+            assert_eq!(
+                yrx_scanner_set_timeout(scanner, 0),
+                YRX_RESULT::YRX_SUCCESS
+            );
+            let output = b"\x08\x01\x80\x01\x01";
+            assert_eq!(
+                yrx_scanner_set_module_output(
+                    scanner,
+                    c"pe".as_ptr(),
+                    output.as_ptr(),
+                    output.len()
+                ),
+                YRX_RESULT::YRX_SUCCESS
+            );
+            let result = if scan_file {
+                yrx_scanner_scan_file(scanner, c"Cargo.toml".as_ptr())
+            } else {
+                yrx_scanner_scan(scanner, std::ptr::null(), 0)
+            };
+            assert_eq!(result, YRX_RESULT::YRX_SCAN_TIMEOUT);
+            assert!(events.is_empty());
+            assert_eq!(
+                yrx_scanner_set_timeout(scanner, 60),
+                YRX_RESULT::YRX_SUCCESS
+            );
+            let result = if scan_file {
+                yrx_scanner_scan_file(scanner, c"Cargo.toml".as_ptr())
+            } else {
+                yrx_scanner_scan(scanner, std::ptr::null(), 0)
+            };
+            assert_eq!(result, YRX_RESULT::YRX_SUCCESS);
+            assert_eq!(events.len(), 1);
+            assert_eq!(events[0].0, "pe");
+            assert_eq!(events[0].1["is_pe"], false);
+            events.clear();
+        }
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
+    }
+}
+
+#[test]
+fn capi_module_outputs() {
+    unsafe {
+        let mut rules = std::ptr::null_mut();
+        assert_eq!(
+            yrx_compile(
+                c"import \"pe\" import \"cuckoo\" rule t { condition: false }"
+                    .as_ptr(),
+                &mut rules
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let mut scanner = std::ptr::null_mut();
+        assert_eq!(
+            yrx_scanner_create(rules, &mut scanner),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let mut events = Vec::<(String, serde_json::Value)>::new();
+        let data = &mut events as *mut _ as *mut c_void;
+        assert_eq!(
+            crate::yrx_scanner_on_module_output(
+                scanner,
+                Some(on_output),
+                data
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            yrx_scanner_scan(scanner, std::ptr::null(), 0),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        events.sort_by(|a, b| a.0.cmp(&b.0));
+        assert_eq!(
+            events.iter().map(|e| e.0.as_str()).collect::<Vec<_>>(),
+            ["cuckoo", "pe"]
+        );
+        assert_eq!(events[1].1["is_pe"], false);
+        events.clear();
+        let output = b"\x08\x01\x80\x01\x01";
+        assert_eq!(
+            yrx_scanner_set_module_output(
+                scanner,
+                c"pe".as_ptr(),
+                output.as_ptr(),
+                output.len()
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            yrx_scanner_scan(scanner, std::ptr::null(), 0),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        let pe = &events.iter().find(|e| e.0 == "pe").unwrap().1;
+        assert_eq!(pe["is_pe"], true);
+        assert_eq!(pe["entry_point"], 1);
+        events.clear();
+        assert_ne!(
+            yrx_scanner_scan_file(
+                scanner,
+                c"/nonexistent-yara-x-test-file".as_ptr()
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert!(events.is_empty());
+        assert_eq!(
+            crate::yrx_scanner_on_module_output(
+                scanner,
+                None,
+                std::ptr::null_mut()
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert_eq!(
+            yrx_scanner_scan(scanner, std::ptr::null(), 0),
+            YRX_RESULT::YRX_SUCCESS
+        );
+        assert!(events.is_empty());
+        assert_eq!(
+            crate::yrx_scanner_on_module_output(
+                std::ptr::null_mut(),
+                Some(on_output),
+                data
+            ),
+            YRX_RESULT::YRX_INVALID_ARGUMENT
+        );
+        yrx_scanner_destroy(scanner);
+        yrx_rules_destroy(rules);
+    }
+}
+
 use assert_call::{CallRecorder, call};
 
 extern "C" fn on_rule_iter(_rule: *const YRX_RULE, user_data: *mut c_void) {
