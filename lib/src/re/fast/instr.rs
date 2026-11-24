@@ -38,8 +38,7 @@ pub(crate) enum Instr<'a> {
     JumpUnbounded(RangeFrom<u32>),
 
     /// Matches any string with a length in a given range, but the string can't
-    /// contain newline characters. This is a non-greedy match, shorter strings
-    /// are preferred.
+    /// contain newline characters.
     JumpNoNewline(RangeInclusive<u32>),
 
     /// Like JumpNoNewline, but the upper bound is infinite.
@@ -59,6 +58,7 @@ impl Instr<'_> {
 
 /// Parses a slice of bytes that contains Fast VM instructions, returning
 /// individual instructions and their arguments.
+#[derive(Clone, Copy)]
 pub(crate) struct InstrParser<'a> {
     code: &'a [u8],
 }

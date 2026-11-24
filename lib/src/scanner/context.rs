@@ -1643,18 +1643,12 @@ fn verify_regexp(
     // faster and less general FastVM, or for the slower but more general
     // PikeVM.
     if let Some(fwd_code) = atom.fwd_code() {
-        // PikeVM executes threads in priority order so its first match is
-        // already the greedy or non-greedy winner, whereas FastVM enumerates
-        // matches in increasing length order and must continue when greedy.
-        let continue_on_match = flags.contains(SubPatternFlags::FastRegexp)
-            && flags.contains(SubPatternFlags::GreedyRegexp);
+        // Both PikeVM and FastVM respect path priority order (ordered
+        // alternation and greedy/non-greedy jumps), so returning
+        // `ControlFlow::Break(())` selects the winning match in both engines.
         vm.try_match(fwd_code, fwd_data, bck_data, flags, |match_len| {
             fwd_match_len = Some(match_len);
-            if continue_on_match {
-                ControlFlow::Continue(())
-            } else {
-                ControlFlow::Break(())
-            }
+            ControlFlow::Break(())
         });
     } else {
         fwd_match_len = Some(atom.len());
@@ -2188,8 +2182,9 @@ impl<'r> VM<'r> {
     ) {
         let wide = flags.contains(SubPatternFlags::Wide);
         if flags.contains(SubPatternFlags::FastRegexp) {
+            let greedy = flags.contains(SubPatternFlags::GreedyRegexp);
             let input = if code.backwards() { bck_data } else { fwd_data };
-            self.fast_vm.try_match(code, input, wide, f);
+            self.fast_vm.try_match(code, input, wide, greedy, f);
         } else {
             self.pike_vm.try_match(code, fwd_data, bck_data, wide, f);
         }
