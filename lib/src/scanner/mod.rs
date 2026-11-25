@@ -319,6 +319,42 @@ impl<'r> Scanner<'r> {
     /// message being logged. The function can print the message to stdout,
     /// append it to a file, etc. If no callback is set these messages are
     /// ignored.
+    ///
+    /// Any data borrowed by `callback` must outlive the [`Scanner`], because
+    /// the callback is owned by the scanner and dropped when the scanner is
+    /// dropped. Declare borrowed data before the scanner (or drop the scanner
+    /// before moving the borrowed data):
+    ///
+    /// ```compile_fail,E0505
+    /// # use std::io::{BufWriter, Write};
+    /// # use yara_x::{Rules, ScanError, Scanner};
+    /// fn console_output(rules: &Rules, data: &[u8]) -> Result<Vec<u8>, ScanError> {
+    ///     let mut scanner = Scanner::new(rules);
+    ///     let mut log = Vec::new();
+    ///     let mut writer = BufWriter::new(&mut log);
+    ///     scanner.console_log(move |msg| writeln!(writer, "{msg}").unwrap());
+    ///     scanner.scan(data)?;
+    ///     Ok(log)
+    /// }
+    /// ```
+    ///
+    /// Declaring `log` after `scanner` is also rejected even if `drop(scanner)`
+    /// appears on the normal path, because an early `?` return would drop
+    /// `log` before `scanner`:
+    ///
+    /// ```compile_fail,E0597
+    /// # use std::io::{BufWriter, Write};
+    /// # use yara_x::{Rules, ScanError, Scanner};
+    /// fn console_output(rules: &Rules, data: &[u8]) -> Result<Vec<u8>, ScanError> {
+    ///     let mut scanner = Scanner::new(rules);
+    ///     let mut log = Vec::new();
+    ///     let mut writer = BufWriter::new(&mut log);
+    ///     scanner.console_log(move |msg| writeln!(writer, "{msg}").unwrap());
+    ///     scanner.scan(data)?;
+    ///     drop(scanner);
+    ///     Ok(log)
+    /// }
+    /// ```
     pub fn console_log<F>(&mut self, callback: F) -> &mut Self
     where
         F: FnMut(String) + 'r,

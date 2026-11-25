@@ -2272,16 +2272,22 @@ impl From<i64> for RuntimeObjectHandle {
 }
 
 /// Owns a heap-pinned WASM [`Store`] and its embedded [`ScanContext`], tying
-/// their lifetime to the compiled [`Rules`] (`'r`).
+/// their lifetime to `'r` (the lifetime of the compiled [`Rules`] and any
+/// `console_log` callback stored in the context).
 ///
 /// [`Store`] requires a `'static` state type, so [`ScanContext<'r, '_>`] has
 /// its lifetimes erased to `'static` on construction and restored when
 /// borrowed via [`Self::get`] and [`Self::get_mut`]. Keeping both
 /// transmutations inside this type ensures `'r` can never be separated from
 /// the underlying store and borrows cannot outlive `&self` / `&mut self`.
+///
+/// `_ctx` uses `PhantomData<ScanContext<'r, 'static>>` (rather than
+/// `PhantomData<&'r Rules>`) so the drop checker knows that dropping
+/// [`PinnedScanContext`] drops a [`ScanContext<'r, '_>`] — including any
+/// `console_log` callback whose destructor may access data borrowed for `'r`.
 pub(crate) struct PinnedScanContext<'r> {
     store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
-    _rules: PhantomData<&'r Rules>,
+    _ctx: PhantomData<ScanContext<'r, 'static>>,
 }
 
 impl<'r> PinnedScanContext<'r> {
@@ -2355,8 +2361,10 @@ impl<'r> PinnedScanContext<'r> {
         // Also, the `Store` type requires a type T that is static, therefore
         // we are forced to transmute the ScanContext<'r> into ScanContext<'static>.
         // This is safe to do because the Store only lives for the time that
-        // the scanner lives, and 'r is the lifetime for the rules passed to
-        // the scanner, which are guaranteed to outlive the scanner.
+        // the scanner lives, and `_ctx: PhantomData<ScanContext<'r, 'static>>`
+        // tells the drop checker that dropping `PinnedScanContext<'r>` drops
+        // a `ScanContext<'r, '_>` — ensuring `'r` (both the rules and anything
+        // borrowed by a `console_log` callback) strictly outlives the scanner.
         let mut wasm_store = Box::pin(Store::new(
             wasm::get_engine(),
             unsafe {
@@ -2437,18 +2445,18 @@ impl<'r> PinnedScanContext<'r> {
         ctx.wasm.filesize = Some(filesize);
         ctx.wasm.pattern_search_done = Some(pattern_search_done);
 
-        Self { store: wasm_store, _rules: PhantomData }
+        Self { store: wasm_store, _ctx: PhantomData }
     }
 
     /// Returns a reference to the underlying [`ScanContext`].
     #[cfg(feature = "rules-profiling")]
     #[inline]
-    pub(crate) fn get<'a>(&'a self) -> &'a ScanContext<'r, 'a> {
-        // SAFETY: `self._rules` guarantees `Rules` outlives `'r`, and both
-        // the reference lifetime and scanned-data lifetime `'a` are bounded
-        // by `&'a self`.
+    pub(crate) fn get<'d>(&'a self) -> &'d ScanContext<'r, 'd> {
+        // SAFETY: `self._ctx` guarantees `'r` strictly outlives `self`, and
+        // both the reference lifetime and scanned-data lifetime `'d` are
+        // bounded by `&'a self`.
         unsafe {
-            transmute::<&ScanContext<'static, 'static>, &ScanContext<'r, 'a>>(
+            transmute::<&ScanContext<'static, 'static>, &ScanContext<'r, 'd>>(
                 self.store.data(),
             )
         }
@@ -2456,14 +2464,14 @@ impl<'r> PinnedScanContext<'r> {
 
     /// Returns a mutable reference to the underlying [`ScanContext`].
     #[inline]
-    pub(crate) fn get_mut<'a>(&'a mut self) -> &'a mut ScanContext<'r, 'a> {
-        // SAFETY: `self._rules` guarantees `Rules` outlives `'r`, and both
-        // the exclusive borrow and scanned-data lifetime `'a` are bounded
+    pub(crate) fn get_mut<'d>(&'d mut self) -> &'d mut ScanContext<'r, 'd> {
+        // SAFETY: `self._ctx` guarantees `'r` strictly outlives `self`, and
+        // both the exclusive borrow and scanned-data lifetime `'a` are bounded
         // by `&'a mut self`, preventing aliasing borrows.
         unsafe {
             transmute::<
                 &mut ScanContext<'static, 'static>,
-                &mut ScanContext<'r, 'a>,
+                &mut ScanContext<'r, 'd>,
             >(self.store.data_mut())
         }
     }

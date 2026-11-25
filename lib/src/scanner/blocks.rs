@@ -289,6 +289,24 @@ impl<'r> Scanner<'r> {
     /// message being logged. The function can print the message to stdout,
     /// append it to a file, etc. If no callback is set these messages are
     /// ignored.
+    ///
+    /// Any data borrowed by `callback` must outlive the [`Scanner`], because
+    /// the callback is owned by the scanner and dropped when the scanner is
+    /// dropped:
+    ///
+    /// ```compile_fail,E0505
+    /// # use std::io::{BufWriter, Write};
+    /// # use yara_x::{Rules, ScanError, blocks};
+    /// fn console_output(rules: &Rules, data: &[u8]) -> Result<Vec<u8>, ScanError> {
+    ///     let mut scanner = blocks::Scanner::new(rules);
+    ///     let mut log = Vec::new();
+    ///     let mut writer = BufWriter::new(&mut log);
+    ///     scanner.console_log(move |msg| writeln!(writer, "{msg}").unwrap());
+    ///     scanner.scan(0, data)?;
+    ///     scanner.finish()?;
+    ///     Ok(log)
+    /// }
+    /// ```
     pub fn console_log<F>(&mut self, callback: F) -> &mut Self
     where
         F: FnMut(String) + 'r,

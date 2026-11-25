@@ -2091,3 +2091,59 @@ fn chained_patterns_distance_precheck() {
     let block_results = block_scanner.finish().unwrap();
     assert_eq!(block_results.matching_rules().len(), 1);
 }
+
+#[test]
+fn console_log_borrowed_bufwriter() {
+    use std::io::{BufWriter, Write};
+
+    fn assert_unpin<T: Unpin>() {}
+    fn assert_covariant<'a>(s: Scanner<'static>) -> Scanner<'a> {
+        s
+    }
+    fn assert_blocks_covariant<'a>(
+        s: crate::blocks::Scanner<'static>,
+    ) -> crate::blocks::Scanner<'a> {
+        s
+    }
+
+    assert_unpin::<Scanner<'_>>();
+    assert_unpin::<crate::blocks::Scanner<'_>>();
+    let _ = (assert_covariant, assert_blocks_covariant);
+
+    let rules = crate::compile(
+        r#"
+        import "console"
+        rule test {
+            condition:
+                console.log("hello from the rule")
+        }
+        "#,
+    )
+    .unwrap();
+
+    // Valid drop order: `log` is declared before `scanner`, so `scanner`
+    // (and the `BufWriter` inside its `console_log` callback) drops and
+    // flushes into `log` before `log` is read or dropped.
+    let mut log = b"console output:\n".to_vec();
+    {
+        let mut scanner = Scanner::new(&rules);
+        let mut writer = BufWriter::new(&mut log);
+        scanner.console_log(move |msg| {
+            writeln!(writer, "{msg}").unwrap();
+        });
+        scanner.scan(b"some data").unwrap();
+    }
+    assert_eq!(log, b"console output:\nhello from the rule\n");
+
+    let mut block_log = b"console output:\n".to_vec();
+    {
+        let mut scanner = crate::blocks::Scanner::new(&rules);
+        let mut writer = BufWriter::new(&mut block_log);
+        scanner.console_log(move |msg| {
+            writeln!(writer, "{msg}").unwrap();
+        });
+        scanner.scan(0, b"some data").unwrap();
+        scanner.finish().unwrap();
+    }
+    assert_eq!(block_log, b"console output:\nhello from the rule\n");
+}
