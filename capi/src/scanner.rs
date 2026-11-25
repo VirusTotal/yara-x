@@ -12,6 +12,7 @@ use yara_x::errors::ScanError;
 
 use crate::{
     _yrx_set_last_error, YRX_RESULT, YRX_RULE, YRX_RULE_CALLBACK, YRX_RULES,
+    slice_from_ptr_and_len,
 };
 
 enum InnerScanner<'r> {
@@ -950,23 +951,6 @@ pub unsafe extern "C" fn yrx_scanner_clear_profiling_data(
         _yrx_set_last_error::<&str>(None);
         YRX_RESULT::YRX_SUCCESS
     }
-}
-
-unsafe fn slice_from_ptr_and_len<'a>(
-    data: *const u8,
-    len: usize,
-) -> Option<&'a [u8]> {
-    // `data` is allowed to be null as long as `len` is 0. That's equivalent
-    // to an empty slice.
-    if data.is_null() && len > 0 {
-        return None;
-    }
-    let data = if data.is_null() || len == 0 {
-        &[]
-    } else {
-        std::slice::from_raw_parts(data, len)
-    };
-    Some(data)
 }
 
 unsafe fn str_from_ptr<'a>(s: *const c_char) -> Result<&'a str, YRX_RESULT> {
