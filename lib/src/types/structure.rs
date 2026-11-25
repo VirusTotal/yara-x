@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::modules::RegisteredModule;
 use crate::modules::protos::yara as protos;
@@ -53,6 +54,71 @@ impl std::borrow::Borrow<[u8]> for InternedString {
     #[inline]
     fn borrow(&self) -> &[u8] {
         self.0.as_slice()
+    }
+}
+
+/// Cache scoped to a single [`Struct::from_proto_descriptor_and_msg`] call.
+///
+/// Reuses identical [`BString`] values and empty [`Array`] instances across all
+/// [`Struct`]s produced from one protobuf message tree, reducing allocations
+/// for large module outputs (such as `dotnet`).
+///
+/// This cache is intentionally local to each conversion rather than
+/// `thread_local!`: the resulting [`Struct`] tree is stored inside a scanner
+/// (or compiler) and outlives the call. When accessed through the C API or
+/// language bindings (such as Go), a scanner may later be used or destroyed on
+/// a different OS thread. Keeping these [`Rc`] instances confined to a single
+/// conversion guarantees that no external thread-local reference remains,
+/// preventing concurrent updates to non-atomic [`Rc`] reference counts.
+#[derive(Default)]
+struct ProtoBuildCache {
+    string_pool: FxHashSet<InternedString>,
+    empty_integers: Option<Rc<Array>>,
+    empty_floats: Option<Rc<Array>>,
+    empty_bools: Option<Rc<Array>>,
+    empty_strings: Option<Rc<Array>>,
+    empty_structs: Option<Rc<Array>>,
+}
+
+impl ProtoBuildCache {
+    #[inline]
+    fn intern_string(&mut self, bytes: &[u8]) -> Rc<BString> {
+        if let Some(entry) = self.string_pool.get(bytes) {
+            return Rc::clone(&entry.0);
+        }
+        let rc = Rc::new(BString::from(bytes));
+        self.string_pool.insert(InternedString(Rc::clone(&rc)));
+        rc
+    }
+
+    #[inline]
+    fn empty_array(&mut self, ty: &RuntimeType) -> Rc<Array> {
+        match ty {
+            RuntimeType::I32
+            | RuntimeType::I64
+            | RuntimeType::U32
+            | RuntimeType::U64
+            | RuntimeType::Enum(_) => Rc::clone(
+                self.empty_integers
+                    .get_or_insert_with(|| Rc::new(Array::Integers(vec![]))),
+            ),
+            RuntimeType::F32 | RuntimeType::F64 => Rc::clone(
+                self.empty_floats
+                    .get_or_insert_with(|| Rc::new(Array::Floats(vec![]))),
+            ),
+            RuntimeType::Bool => Rc::clone(
+                self.empty_bools
+                    .get_or_insert_with(|| Rc::new(Array::Bools(vec![]))),
+            ),
+            RuntimeType::String | RuntimeType::VecU8 => Rc::clone(
+                self.empty_strings
+                    .get_or_insert_with(|| Rc::new(Array::Strings(vec![]))),
+            ),
+            RuntimeType::Message(_) => Rc::clone(
+                self.empty_structs
+                    .get_or_insert_with(|| Rc::new(Array::Structs(vec![]))),
+            ),
+        }
     }
 }
 
@@ -208,12 +274,18 @@ struct ProtoFieldSchema {
 /// this information once per [`MessageDescriptor`] and caches it in the
 /// thread-local `PROTO_STRUCT_SCHEMAS` map so that all [`Struct`] instances of
 /// the same protobuf message type share the same
-/// `Rc<IndexMap<String, StructFieldMeta>>`.
+/// `Arc<IndexMap<String, StructFieldMeta>>`.
+///
+/// `field_meta` uses [`Arc`] rather than [`Rc`] because `Struct` instances
+/// escape into `Scanner` and `Compiler` state; when driven via the C API or
+/// language bindings (such as Go), a scanner or compiler may be migrated
+/// between OS threads across calls or dropped on a different thread than the
+/// one that populated it.
 struct ProtoStructSchema {
     /// Protobuf syntax version (`proto2` or `proto3`) of the file defining the message.
     syntax: Syntax,
     /// Shared map from field name to [`StructFieldMeta`], ordered by protobuf tag number.
-    field_meta: Rc<IndexMap<String, StructFieldMeta>>,
+    field_meta: Arc<IndexMap<String, StructFieldMeta>>,
     /// Per-field descriptors and options in the same order as `field_meta`.
     fields: Vec<ProtoFieldSchema>,
 }
@@ -221,11 +293,6 @@ struct ProtoStructSchema {
 thread_local! {
     static PROTO_STRUCT_SCHEMAS: RefCell<FxHashMap<MessageDescriptor, Rc<ProtoStructSchema>>> =
         RefCell::new(FxHashMap::default());
-    static EMPTY_ARRAY_INTEGERS: Rc<Array> = Rc::new(Array::Integers(vec![]));
-    static EMPTY_ARRAY_FLOATS: Rc<Array> = Rc::new(Array::Floats(vec![]));
-    static EMPTY_ARRAY_BOOLS: Rc<Array> = Rc::new(Array::Bools(vec![]));
-    static EMPTY_ARRAY_STRINGS: Rc<Array> = Rc::new(Array::Strings(vec![]));
-    static EMPTY_ARRAY_STRUCTS: Rc<Array> = Rc::new(Array::Structs(vec![]));
 }
 
 impl ProtoStructSchema {
@@ -291,7 +358,7 @@ impl ProtoStructSchema {
             fields.push(field_schema);
         }
 
-        Self { syntax, field_meta: Rc::new(field_meta), fields }
+        Self { syntax, field_meta: Arc::new(field_meta), fields }
     }
 }
 
@@ -314,11 +381,11 @@ pub(crate) struct Struct {
     /// Field metadata keyed by field name in insertion order. The index of each
     /// entry in this `IndexMap` corresponds to its [`StructField`] in `fields`.
     ///
-    /// Wrapped in [`Rc`] so that all [`Struct`] instances created from the
+    /// Wrapped in [`Arc`] so that all [`Struct`] instances created from the
     /// same protobuf [`MessageDescriptor`] share a single [`IndexMap`]
     /// instead of duplicating field names, metadata, and hash tables per
-    /// instance.
-    field_meta: Rc<IndexMap<String, StructFieldMeta>>,
+    /// instance, while remaining safe if dropped on a different OS thread.
+    field_meta: Arc<IndexMap<String, StructFieldMeta>>,
     /// Fields in this structure, ordered by their index in `field_meta`.
     /// For protobuf-derived structures fields are inserted in the order
     /// determined by their tag numbers, the order in which they appear in
@@ -353,7 +420,7 @@ impl Struct {
     /// Creates a new, empty struct.
     pub fn new() -> Self {
         Self {
-            field_meta: Rc::new(IndexMap::new()),
+            field_meta: Arc::new(IndexMap::new()),
             fields: Vec::new(),
             is_root: false,
             protobuf_type_name: None,
@@ -428,7 +495,7 @@ impl Struct {
             if let Some(index) = self.field_meta.get_index_of(name.as_str()) {
                 Some(std::mem::replace(&mut self.fields[index], new_field))
             } else {
-                Rc::make_mut(&mut self.field_meta)
+                Arc::make_mut(&mut self.field_meta)
                     .insert(name, StructFieldMeta::default());
                 self.fields.push(new_field);
                 None
@@ -440,7 +507,7 @@ impl Struct {
         if let Some(index) = self.field_meta.get_index_of(name) {
             &mut self.fields[index]
         } else {
-            let (index, _) = Rc::make_mut(&mut self.field_meta)
+            let (index, _) = Arc::make_mut(&mut self.field_meta)
                 .insert_full(name.to_owned(), StructFieldMeta::default());
             self.fields.push(StructField {
                 type_value: TypeValue::Struct(Rc::new(Struct::new())),
@@ -616,22 +683,22 @@ impl Struct {
         generate_fields_for_enums: bool,
         generate_compile_time_fields: bool,
     ) -> Rc<Self> {
-        let mut string_pool = FxHashSet::default();
-        Self::from_proto_descriptor_and_msg_with_pool(
+        let mut cache = ProtoBuildCache::default();
+        Self::from_proto_descriptor_and_msg_with_cache(
             msg_descriptor,
             msg,
             generate_fields_for_enums,
             generate_compile_time_fields,
-            &mut string_pool,
+            &mut cache,
         )
     }
 
-    fn from_proto_descriptor_and_msg_with_pool(
+    fn from_proto_descriptor_and_msg_with_cache(
         msg_descriptor: &MessageDescriptor,
         msg: Option<&dyn MessageDyn>,
         generate_fields_for_enums: bool,
         generate_compile_time_fields: bool,
-        string_pool: &mut FxHashSet<InternedString>,
+        cache: &mut ProtoBuildCache,
     ) -> Rc<Self> {
         let schema = ProtoStructSchema::get_or_init(msg_descriptor);
         let syntax = schema.syntax;
@@ -648,14 +715,14 @@ impl Struct {
                     generate_fields_for_enums,
                     generate_compile_time_fields,
                     syntax,
-                    string_pool,
+                    cache,
                 ),
                 RuntimeFieldType::Repeated(ty) => Self::new_array(
                     &ty,
                     msg.map(|msg| fd.get_repeated(msg)),
                     generate_fields_for_enums,
                     generate_compile_time_fields,
-                    string_pool,
+                    cache,
                 ),
                 RuntimeFieldType::Map(key_ty, value_ty) => Self::new_map(
                     &key_ty,
@@ -664,7 +731,7 @@ impl Struct {
                     generate_fields_for_enums,
                     generate_compile_time_fields,
                     syntax,
-                    string_pool,
+                    cache,
                 ),
             };
 
@@ -685,7 +752,7 @@ impl Struct {
         }
 
         let mut new_struct = Self {
-            field_meta: Rc::clone(&schema.field_meta),
+            field_meta: Arc::clone(&schema.field_meta),
             fields,
             is_root: false,
             protobuf_type_name: if generate_compile_time_fields {
@@ -716,19 +783,6 @@ impl Struct {
         }
 
         Rc::new(new_struct)
-    }
-
-    #[inline]
-    fn intern_string(
-        pool: &mut FxHashSet<InternedString>,
-        bytes: &[u8],
-    ) -> Rc<BString> {
-        if let Some(entry) = pool.get(bytes) {
-            return Rc::clone(&entry.0);
-        }
-        let rc = Rc::new(BString::from(bytes));
-        pool.insert(InternedString(Rc::clone(&rc)));
-        rc
     }
 
     /// Returns true if the given message is the YARA module's root message.
@@ -1036,7 +1090,7 @@ impl Struct {
         enum_as_fields: bool,
         generate_compile_time_fields: bool,
         syntax: Syntax,
-        string_pool: &mut FxHashSet<InternedString>,
+        cache: &mut ProtoBuildCache,
     ) -> TypeValue {
         match ty {
             RuntimeType::U64 => {
@@ -1107,10 +1161,7 @@ impl Struct {
             }
             RuntimeType::String | RuntimeType::VecU8 => {
                 if let Some(v) = value {
-                    let s = Self::intern_string(
-                        string_pool,
-                        Self::value_as_string(v),
-                    );
+                    let s = cache.intern_string(Self::value_as_string(v));
                     TypeValue::String {
                         value: Value::Var(s),
                         constraints: None,
@@ -1118,7 +1169,7 @@ impl Struct {
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    let s = Self::intern_string(string_pool, b"");
+                    let s = cache.intern_string(b"");
                     TypeValue::String {
                         value: Value::Var(s),
                         constraints: None,
@@ -1134,15 +1185,15 @@ impl Struct {
                         value,
                         enum_as_fields,
                         generate_compile_time_fields,
-                        string_pool,
+                        cache,
                     )
                 } else {
-                    Self::from_proto_descriptor_and_msg_with_pool(
+                    Self::from_proto_descriptor_and_msg_with_cache(
                         msg_descriptor,
                         None,
                         enum_as_fields,
                         generate_compile_time_fields,
-                        string_pool,
+                        cache,
                     )
                 };
                 TypeValue::Struct(structure)
@@ -1164,27 +1215,12 @@ impl Struct {
         repeated: Option<ReflectRepeatedRef>,
         enum_as_fields: bool,
         generate_compile_time_fields: bool,
-        string_pool: &mut FxHashSet<InternedString>,
+        cache: &mut ProtoBuildCache,
     ) -> TypeValue {
         if !generate_compile_time_fields
             && repeated.as_ref().is_some_and(|r| r.is_empty())
         {
-            let empty_rc = match ty {
-                RuntimeType::I32
-                | RuntimeType::I64
-                | RuntimeType::U32
-                | RuntimeType::U64
-                | RuntimeType::Enum(_) => EMPTY_ARRAY_INTEGERS.with(Rc::clone),
-                RuntimeType::F32 | RuntimeType::F64 => {
-                    EMPTY_ARRAY_FLOATS.with(Rc::clone)
-                }
-                RuntimeType::Bool => EMPTY_ARRAY_BOOLS.with(Rc::clone),
-                RuntimeType::String | RuntimeType::VecU8 => {
-                    EMPTY_ARRAY_STRINGS.with(Rc::clone)
-                }
-                RuntimeType::Message(_) => EMPTY_ARRAY_STRUCTS.with(Rc::clone),
-            };
-            return TypeValue::Array(empty_rc);
+            return TypeValue::Array(cache.empty_array(ty));
         }
 
         let array = match ty {
@@ -1234,10 +1270,7 @@ impl Struct {
             RuntimeType::String => {
                 if let Some(repeated) = repeated {
                     Array::Strings(Self::collect_repeated(repeated, |value| {
-                        Self::intern_string(
-                            string_pool,
-                            value.to_str().unwrap().as_bytes(),
-                        )
+                        cache.intern_string(value.to_str().unwrap().as_bytes())
                     }))
                 } else {
                     Array::Strings(vec![])
@@ -1246,10 +1279,7 @@ impl Struct {
             RuntimeType::VecU8 => {
                 if let Some(repeated) = repeated {
                     Array::Strings(Self::collect_repeated(repeated, |value| {
-                        Self::intern_string(
-                            string_pool,
-                            value.to_bytes().unwrap(),
-                        )
+                        cache.intern_string(value.to_bytes().unwrap())
                     }))
                 } else {
                     Array::Strings(vec![])
@@ -1273,17 +1303,17 @@ impl Struct {
                             value,
                             enum_as_fields,
                             generate_compile_time_fields,
-                            string_pool,
+                            cache,
                         )
                     }))
                 } else {
                     Array::Structs(vec![
-                        Self::from_proto_descriptor_and_msg_with_pool(
+                        Self::from_proto_descriptor_and_msg_with_cache(
                             msg_descriptor,
                             None,
                             enum_as_fields,
                             generate_compile_time_fields,
-                            string_pool,
+                            cache,
                         ),
                     ])
                 }
@@ -1300,7 +1330,7 @@ impl Struct {
         enum_as_fields: bool,
         generate_compile_time_fields: bool,
         syntax: Syntax,
-        string_pool: &mut FxHashSet<InternedString>,
+        cache: &mut ProtoBuildCache,
     ) -> TypeValue {
         let map = match key_ty {
             RuntimeType::String => Self::new_map_with_string_key(
@@ -1309,7 +1339,7 @@ impl Struct {
                 enum_as_fields,
                 generate_compile_time_fields,
                 syntax,
-                string_pool,
+                cache,
             ),
             RuntimeType::I32
             | RuntimeType::I64
@@ -1320,7 +1350,7 @@ impl Struct {
                 enum_as_fields,
                 generate_compile_time_fields,
                 syntax,
-                string_pool,
+                cache,
             ),
             ty => {
                 panic!("maps in YARA can't have keys of type `{ty}`");
@@ -1336,7 +1366,7 @@ impl Struct {
         enum_as_fields: bool,
         generate_compile_time_fields: bool,
         syntax: Syntax,
-        string_pool: &mut FxHashSet<InternedString>,
+        cache: &mut ProtoBuildCache,
     ) -> Map {
         if let Some(map) = map {
             let mut result = IndexMap::default();
@@ -1349,7 +1379,7 @@ impl Struct {
                         enum_as_fields,
                         generate_compile_time_fields,
                         syntax,
-                        string_pool,
+                        cache,
                     ),
                 );
             }
@@ -1362,7 +1392,7 @@ impl Struct {
                     enum_as_fields,
                     generate_compile_time_fields,
                     syntax,
-                    string_pool,
+                    cache,
                 )),
                 map: Default::default(),
             }
@@ -1375,7 +1405,7 @@ impl Struct {
         enum_as_fields: bool,
         generate_compile_time_fields: bool,
         syntax: Syntax,
-        string_pool: &mut FxHashSet<InternedString>,
+        cache: &mut ProtoBuildCache,
     ) -> Map {
         if let Some(map) = map {
             let mut result = IndexMap::default();
@@ -1388,7 +1418,7 @@ impl Struct {
                         enum_as_fields,
                         generate_compile_time_fields,
                         syntax,
-                        string_pool,
+                        cache,
                     ),
                 );
             }
@@ -1401,7 +1431,7 @@ impl Struct {
                     enum_as_fields,
                     generate_compile_time_fields,
                     syntax,
-                    string_pool,
+                    cache,
                 )),
                 map: Default::default(),
             }
@@ -1413,15 +1443,15 @@ impl Struct {
         value: ReflectValueRef,
         enum_as_fields: bool,
         generate_compile_time_fields: bool,
-        string_pool: &mut FxHashSet<InternedString>,
+        cache: &mut ProtoBuildCache,
     ) -> Rc<Self> {
         if let ReflectValueRef::Message(m) = value {
-            Struct::from_proto_descriptor_and_msg_with_pool(
+            Struct::from_proto_descriptor_and_msg_with_cache(
                 msg_descriptor,
                 Some(m.deref()),
                 enum_as_fields,
                 generate_compile_time_fields,
-                string_pool,
+                cache,
             )
         } else {
             unreachable!()
@@ -1496,7 +1526,7 @@ impl PartialEq for Struct {
         if self.fields.len() != other.fields.len() {
             return false;
         }
-        if !Rc::ptr_eq(&self.field_meta, &other.field_meta)
+        if !Arc::ptr_eq(&self.field_meta, &other.field_meta)
             && !self.field_meta.keys().eq(other.field_meta.keys())
         {
             return false;

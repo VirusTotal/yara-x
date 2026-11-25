@@ -1242,3 +1242,177 @@ fn capi_metadata_literal_nul() {
         yrx_rules_destroy(rules);
     }
 }
+
+/// Regression test for moving `YRX_SCANNER` instances across OS threads
+/// sequentially (never concurrently), as happens in Go goroutines or C thread
+/// pools.
+#[test]
+fn capi_scanner_migrated_across_threads() {
+    use std::collections::VecDeque;
+    use std::sync::{Arc, Condvar, Mutex};
+
+    struct SendPtr<T>(*mut T);
+    unsafe impl<T> Send for SendPtr<T> {}
+
+    const NUM_THREADS: usize = 8;
+    const NUM_SCANNERS: usize = 8;
+    const SCANS_PER_THREAD: usize = 500;
+
+    unsafe {
+        let mut rules = std::ptr::null_mut();
+        assert_eq!(
+            yrx_compile(
+                c"import \"pe\" rule uses_pe { condition: pe.number_of_sections > 100 }".as_ptr(),
+                &mut rules,
+            ),
+            YRX_RESULT::YRX_SUCCESS
+        );
+
+        let pool = Arc::new((
+            Mutex::new(VecDeque::with_capacity(NUM_SCANNERS)),
+            Condvar::new(),
+        ));
+
+        {
+            let mut queue = pool.0.lock().unwrap();
+            for _ in 0..NUM_SCANNERS {
+                let mut scanner = std::ptr::null_mut();
+                assert_eq!(
+                    yrx_scanner_create(rules, &mut scanner),
+                    YRX_RESULT::YRX_SUCCESS
+                );
+                queue.push_back(SendPtr(scanner));
+            }
+        }
+
+        let handles: Vec<_> = (0..NUM_THREADS)
+            .map(|_| {
+                let pool = Arc::clone(&pool);
+                std::thread::spawn(move || {
+                    let data = b"not a PE file";
+                    for _ in 0..SCANS_PER_THREAD {
+                        let scanner = {
+                            let mut queue = pool.0.lock().unwrap();
+                            loop {
+                                if let Some(s) = queue.pop_front() {
+                                    break s;
+                                }
+                                queue = pool.1.wait(queue).unwrap();
+                            }
+                        };
+
+                        assert_eq!(
+                            yrx_scanner_scan(
+                                scanner.0,
+                                data.as_ptr(),
+                                data.len(),
+                            ),
+                            YRX_RESULT::YRX_SUCCESS
+                        );
+
+                        {
+                            let mut queue = pool.0.lock().unwrap();
+                            queue.push_back(scanner);
+                            pool.1.notify_one();
+                        }
+                    }
+                })
+            })
+            .collect();
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        // Destroy scanners on the main thread (different from the worker
+        // threads that populated them).
+        let mut queue = pool.0.lock().unwrap();
+        while let Some(scanner) = queue.pop_front() {
+            yrx_scanner_destroy(scanner.0);
+        }
+
+        yrx_rules_destroy(rules);
+    }
+}
+
+/// Regression test for moving `YRX_COMPILER` instances across OS threads
+/// sequentially when compiling rules that import modules.
+#[test]
+fn capi_compiler_migrated_across_threads() {
+    use std::collections::VecDeque;
+    use std::ffi::CString;
+    use std::sync::{Arc, Condvar, Mutex};
+
+    struct SendPtr<T>(*mut T);
+    unsafe impl<T> Send for SendPtr<T> {}
+
+    const NUM_THREADS: usize = 8;
+    const NUM_COMPILERS: usize = 8;
+    const SOURCES_PER_THREAD: usize = 20;
+
+    unsafe {
+        let pool = Arc::new((
+            Mutex::new(VecDeque::with_capacity(NUM_COMPILERS)),
+            Condvar::new(),
+        ));
+
+        {
+            let mut queue = pool.0.lock().unwrap();
+            for _ in 0..NUM_COMPILERS {
+                let mut compiler = std::ptr::null_mut();
+                assert_eq!(
+                    yrx_compiler_create(0, &mut compiler),
+                    YRX_RESULT::YRX_SUCCESS
+                );
+                queue.push_back(SendPtr(compiler));
+            }
+        }
+
+        let handles: Vec<_> = (0..NUM_THREADS)
+            .map(|tid| {
+                let pool = Arc::clone(&pool);
+                std::thread::spawn(move || {
+                    for i in 0..SOURCES_PER_THREAD {
+                        let src = CString::new(format!(
+                            "import \"pe\" rule r_{tid}_{i} {{ condition: pe.number_of_sections > {i} }}"
+                        ))
+                        .unwrap();
+
+                        let compiler = {
+                            let mut queue = pool.0.lock().unwrap();
+                            loop {
+                                if let Some(c) = queue.pop_front() {
+                                    break c;
+                                }
+                                queue = pool.1.wait(queue).unwrap();
+                            }
+                        };
+
+                        assert_eq!(
+                            yrx_compiler_add_source(compiler.0, src.as_ptr()),
+                            YRX_RESULT::YRX_SUCCESS
+                        );
+
+                        {
+                            let mut queue = pool.0.lock().unwrap();
+                            queue.push_back(compiler);
+                            pool.1.notify_one();
+                        }
+                    }
+                })
+            })
+            .collect();
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        let mut queue = pool.0.lock().unwrap();
+        while let Some(compiler) = queue.pop_front() {
+            let rules = yrx_compiler_build(compiler.0);
+            assert!(!rules.is_null());
+            yrx_rules_destroy(rules);
+            yrx_compiler_destroy(compiler.0);
+        }
+    }
+}
