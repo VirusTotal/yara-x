@@ -216,6 +216,12 @@ impl<'r> Scanner<'r> {
 
         let ctx = self.ctx.get_mut();
 
+        // In block scanning mode patterns are searched as each block is
+        // scanned, never lazily during condition evaluation because block data
+        // is no longer available here. Ensure the flag is set even when
+        // `finish` is called without scanning any blocks (e.g. an empty
+        // stream).
+        ctx.set_pattern_search_done(true);
         ctx.eval_conditions()?;
 
         ctx.scan_state = ScanState::Finished(DataSnippets::MultiBlock(
@@ -558,6 +564,36 @@ mod tests {
         let results = scanner.finish().unwrap();
 
         assert_eq!(results.matching_rules().len(), 1);
+    }
+
+    #[test]
+    fn block_scanner_finish_without_blocks() {
+        let rules = compile(
+            r#"
+            rule found { strings: $a = "foo" condition: $a }
+            rule not_found { strings: $a = "foo" condition: not $a }"#,
+        )
+        .unwrap();
+
+        let mut scanner = Scanner::new(&rules);
+
+        // Calling `finish` without scanning any block behaves like empty data.
+        let results = scanner.finish().unwrap();
+
+        assert_eq!(results.matching_rules().len(), 1);
+        assert_eq!(
+            results.matching_rules().next().unwrap().identifier(),
+            "not_found"
+        );
+
+        // Subsequent scans on the same scanner still search patterns normally.
+        let results = scanner.scan(0, b"foo").unwrap().finish().unwrap();
+
+        assert_eq!(results.matching_rules().len(), 1);
+        assert_eq!(
+            results.matching_rules().next().unwrap().identifier(),
+            "found"
+        );
     }
 
     #[test]
