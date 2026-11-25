@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use std::fmt::Write;
 
 use bstr::ByteSlice;
-use const_oid::ObjectIdentifier;
 use const_oid::db::{rfc5911, rfc5912, rfc6268};
+use const_oid::{AssociatedOid, ObjectIdentifier};
 use der_parser::asn1_rs::{Set, Tag, ToDer, UtcTime};
 use digest::Digest;
 use itertools::Itertools;
@@ -229,6 +229,13 @@ impl AuthenticodeParser {
         let mut countersignatures = Vec::new();
         let mut remaining_countersigs = Self::MAX_COUNTERSIGNATURES;
 
+        // Every countersignature carries a digest of `signer_info.signature`.
+        // Cache the hash per digest algorithm so the signature value is hashed
+        // at most once per algorithm regardless of how many countersignatures
+        // are present.
+        let mut signature_digests =
+            MessageDigestCache::new(signer_info.signature);
+
         for attr in signer_info.unsigned_attrs.iter() {
             match attr.attr_type {
                 // SignerInfo can have an unsigned attribute containing nested
@@ -263,7 +270,7 @@ impl AuthenticodeParser {
                 }
                 oid::MS_COUNTERSIGN => {
                     Self::parse_ms_countersignature_attr(
-                        &signer_info,
+                        &mut signature_digests,
                         attr,
                         &mut certificates,
                         &mut countersignatures,
@@ -272,7 +279,7 @@ impl AuthenticodeParser {
                 }
                 rfc5911::ID_COUNTERSIGNATURE => {
                     Self::parse_pkcs9_countersignature_attr(
-                        &signer_info,
+                        &mut signature_digests,
                         attr,
                         &mut certificates,
                         &mut countersignatures,
@@ -397,7 +404,7 @@ impl AuthenticodeParser {
     }
 
     fn parse_ms_countersignature_attr<'a>(
-        si: &SignerInfo<'a>,
+        signature_digests: &mut MessageDigestCache<'a>,
         attr: &Attribute<'a>,
         certificates: &mut Vec<Certificate<'a>>,
         countersignatures: &mut Vec<AuthenticodeCountersign<'a>>,
@@ -448,16 +455,14 @@ impl AuthenticodeParser {
                 None => return Err(ParseError::MissingAuthenticodeDigest),
             };
 
-            countersignature.verified =
-                verify_message_digest(
-                    &tst.hash_algorithm,
-                    si.signature,
-                    tst.hashed_message,
-                ) && verify_message_digest(
+            countersignature.verified = signature_digests
+                .verify(&tst.hash_algorithm, tst.hashed_message)
+                && verify_message_digest(
                     &cs_si.digest_algorithm,
                     sd.content_info.content.as_bytes(),
                     cs_si_digest,
-                ) && verify_signer_info(cs_si, certificates.as_slice());
+                )
+                && verify_signer_info(cs_si, certificates.as_slice());
 
             countersignatures.push(countersignature);
         }
@@ -466,7 +471,7 @@ impl AuthenticodeParser {
     }
 
     fn parse_pkcs9_countersignature_attr<'a>(
-        si: &SignerInfo<'a>,
+        signature_digests: &mut MessageDigestCache<'a>,
         attr: &Attribute<'a>,
         certificates: &mut Vec<Certificate<'a>>,
         countersignatures: &mut Vec<AuthenticodeCountersign<'a>>,
@@ -482,12 +487,9 @@ impl AuthenticodeParser {
                 let mut countersignature =
                     Self::pkcs9_countersignature(&cs_si)?;
 
-                countersignature.verified =
-                    verify_message_digest(
-                        &cs_si.digest_algorithm,
-                        si.signature,
-                        countersignature.digest,
-                    ) && verify_signer_info(&cs_si, certificates.as_slice());
+                countersignature.verified = signature_digests
+                    .verify(&cs_si.digest_algorithm, countersignature.digest)
+                    && verify_signer_info(&cs_si, certificates.as_slice());
 
                 countersignatures.push(countersignature);
             }
@@ -827,36 +829,79 @@ fn verify_message_digest(
     message: &[u8],
     digest: &[u8],
 ) -> bool {
-    let oid = match oid_to_object_identifier(algorithm.oid()) {
-        Ok(oid) => oid,
-        Err(_) => return false,
-    };
-    match oid {
-        rfc5912::ID_SHA_1
-        | rfc5912::SHA_1_WITH_RSA_ENCRYPTION
-        | oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE => {
-            Sha1::digest(message).as_slice() == digest
+    MessageDigestCache::new(message).verify(algorithm, digest)
+}
+
+/// Verifies digests of a message, hashing the message at most once per
+/// hashing algorithm.
+///
+/// Used instead of [`verify_message_digest`] when the same message is verified
+/// against multiple digests so the hashing cost does not grow with the number
+/// of verifications.
+struct MessageDigestCache<'a> {
+    message: &'a [u8],
+    digests: FxHashMap<ObjectIdentifier, Vec<u8>>,
+}
+
+impl<'a> MessageDigestCache<'a> {
+    fn new(message: &'a [u8]) -> Self {
+        Self { message, digests: FxHashMap::default() }
+    }
+
+    /// Given a hashing algorithm, compares the message's hash with `digest`
+    /// and returns `true` if they match.
+    fn verify(
+        &mut self,
+        algorithm: &AlgorithmIdentifier,
+        digest: &[u8],
+    ) -> bool {
+        let oid = match oid_to_object_identifier(algorithm.oid()) {
+            Ok(oid) => oid,
+            Err(_) => return false,
+        };
+        match oid {
+            rfc5912::ID_SHA_1
+            | rfc5912::SHA_1_WITH_RSA_ENCRYPTION
+            | oid::SHA1_WITH_RSA_ENCRYPTION_OBSOLETE => {
+                self.verify_with::<Sha1>(digest)
+            }
+            rfc5912::ID_SHA_256 | rfc5912::SHA_256_WITH_RSA_ENCRYPTION => {
+                self.verify_with::<Sha256>(digest)
+            }
+            rfc5912::ID_SHA_384 | rfc5912::SHA_384_WITH_RSA_ENCRYPTION => {
+                self.verify_with::<Sha384>(digest)
+            }
+            rfc5912::ID_SHA_512 | rfc5912::SHA_512_WITH_RSA_ENCRYPTION => {
+                self.verify_with::<Sha512>(digest)
+            }
+            rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
+                self.verify_with::<Md2>(digest)
+            }
+            rfc5912::ID_MD_5 | rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
+                self.verify_with::<Md5>(digest)
+            }
+            _ => {
+                #[cfg(feature = "logging")]
+                error!("unknown digest algorithm: {:?}", algorithm.oid());
+                false
+            }
         }
-        rfc5912::ID_SHA_256 | rfc5912::SHA_256_WITH_RSA_ENCRYPTION => {
-            Sha256::digest(message).as_slice() == digest
+    }
+
+    /// Compares `digest` against the message's hash for algorithm `D`,
+    /// computing and caching the hash on first use.
+    fn verify_with<D: Digest + AssociatedOid>(
+        &mut self,
+        digest: &[u8],
+    ) -> bool {
+        if digest.len() != <D as Digest>::output_size() {
+            return false;
         }
-        rfc5912::ID_SHA_384 | rfc5912::SHA_384_WITH_RSA_ENCRYPTION => {
-            Sha384::digest(message).as_slice() == digest
-        }
-        rfc5912::ID_SHA_512 | rfc5912::SHA_512_WITH_RSA_ENCRYPTION => {
-            Sha512::digest(message).as_slice() == digest
-        }
-        rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
-            Md2::digest(message).as_slice() == digest
-        }
-        rfc5912::ID_MD_5 | rfc5912::MD_5_WITH_RSA_ENCRYPTION => {
-            Md5::digest(message).as_slice() == digest
-        }
-        _ => {
-            #[cfg(feature = "logging")]
-            error!("unknown digest algorithm: {:?}", algorithm.oid());
-            false
-        }
+        let computed = self
+            .digests
+            .entry(D::OID)
+            .or_insert_with(|| D::digest(self.message).to_vec());
+        computed.as_slice() == digest
     }
 }
 
@@ -1100,5 +1145,56 @@ impl<'a, 'b> Iterator for CertificateChain<'a, 'b> {
             }
         }
         next
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use der_parser::asn1_rs::Oid;
+
+    fn algorithm(oid: &ObjectIdentifier) -> AlgorithmIdentifier<'_> {
+        AlgorithmIdentifier::new(Oid::new(Cow::Borrowed(oid.as_bytes())), None)
+    }
+
+    #[test]
+    fn message_digest_cache() {
+        let message = b"yara-x";
+        let md2 = Md2::digest(message);
+        let sha256 = Sha256::digest(message);
+
+        let mut cache = MessageDigestCache::new(message);
+
+        // Wrong-length digest returns false without hashing.
+        let md2_alg = algorithm(&rfc5912::ID_MD_2);
+        assert!(!cache.verify(&md2_alg, sha256.as_slice()));
+        assert_eq!(cache.digests.len(), 0);
+
+        for oid in [rfc5912::ID_MD_2, rfc5912::MD_2_WITH_RSA_ENCRYPTION] {
+            let alg = algorithm(&oid);
+            assert!(cache.verify(&alg, md2.as_slice()));
+            assert!(!cache.verify(&alg, &[0; 16]));
+            assert!(!cache.verify(&alg, sha256.as_slice()));
+            assert!(verify_message_digest(&alg, message, md2.as_slice()));
+            assert!(!verify_message_digest(&alg, message, &[0; 16]));
+        }
+
+        // Alias OIDs for MD2 share a single cached digest entry.
+        assert_eq!(cache.digests.len(), 1);
+
+        for oid in [rfc5912::ID_SHA_256, rfc5912::SHA_256_WITH_RSA_ENCRYPTION]
+        {
+            let alg = algorithm(&oid);
+            assert!(cache.verify(&alg, sha256.as_slice()));
+            assert!(!cache.verify(&alg, md2.as_slice()));
+        }
+
+        assert_eq!(cache.digests.len(), 2);
+
+        // Unknown hashing algorithms never verify and don't hash anything.
+        let alg = algorithm(&rfc5912::RSA_ENCRYPTION);
+        assert!(!cache.verify(&alg, md2.as_slice()));
+        assert!(!cache.verify(&alg, &[]));
+        assert_eq!(cache.digests.len(), 2);
     }
 }
