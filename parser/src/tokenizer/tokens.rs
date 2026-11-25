@@ -47,6 +47,7 @@ pub(crate) enum TokenId {
     WIDE_KW,
     XOR_KW,
     WITH_KW,
+    WITHIN_KW,
 
     // Bitwise operators.
     SHL,
@@ -157,6 +158,7 @@ impl TokenId {
             TokenId::WIDE_KW => "`wide`",
             TokenId::XOR_KW => "`xor`",
             TokenId::WITH_KW => "`with`",
+            TokenId::WITHIN_KW => "`within`",
 
             // Bitwise operators.
             TokenId::SHL => "`<<`",
@@ -258,6 +260,7 @@ pub(crate) enum Token {
     WIDE_KW(Span) = TokenId::WIDE_KW as u8,
     XOR_KW(Span) = TokenId::XOR_KW as u8,
     WITH_KW(Span) = TokenId::WITH_KW as u8,
+    WITHIN_KW(Span) = TokenId::WITHIN_KW as u8,
 
     // Bitwise operators.
     SHL(Span) = TokenId::SHL as u8,
@@ -378,6 +381,7 @@ impl Token {
             | Token::WIDE_KW(span)
             | Token::XOR_KW(span)
             | Token::WITH_KW(span)
+            | Token::WITHIN_KW(span)
 
             // Bitwise operators
             | Token::SHL(span)

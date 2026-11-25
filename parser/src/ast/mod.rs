@@ -943,7 +943,8 @@ pub struct PatternMatch<'src> {
 }
 
 /// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
-/// anchor (e.g. `at <expr>`, `in <range>`).
+/// anchor (e.g. `at <expr>`, `in <range>`). In `of` expressions the anchor
+/// can also be `within <expr>`, as in `all of them within 4KB`.
 ///
 /// The anchor is the part of the expression that restricts the offset range
 /// where the match can occur.
@@ -952,6 +953,16 @@ pub struct PatternMatch<'src> {
 pub enum MatchAnchor<'src> {
     At(Box<At<'src>>),
     In(Box<In<'src>>),
+    Within(Box<Within<'src>>),
+}
+
+/// In expressions like `all of them within 4KB`, this type represents the
+/// anchor (e.g. `within <expr>`). The expression is the maximum distance, in
+/// bytes, between the starting offsets of the matches.
+#[derive(Debug)]
+pub struct Within<'src> {
+    span: Span,
+    pub expr: Expr<'src>,
 }
 
 /// In expressions like `$a at 0`, this type represents the anchor
@@ -1501,6 +1512,7 @@ impl WithSpan for MatchAnchor<'_> {
         match self {
             MatchAnchor::At(a) => a.span.clone(),
             MatchAnchor::In(i) => i.span.clone(),
+            MatchAnchor::Within(w) => w.span.clone(),
         }
     }
 }

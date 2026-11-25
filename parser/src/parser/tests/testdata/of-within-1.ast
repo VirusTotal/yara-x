@@ -1,0 +1,42 @@
+ rule test_1
+ ├─ strings
+ │  ├─ $a = "foo" 
+ │  └─ $b = "bar" 
+ └─ condition
+    └─ <quantifier> of <items> within <expr>
+       ├─ <quantifier>
+       │  └─ all
+       ├─ <items: pattern_set>
+       │  └─ them
+       └─ <expr>
+          └─ 4
+
+ rule test_2
+ ├─ strings
+ │  ├─ $a = "foo" 
+ │  └─ $b = "bar" 
+ └─ condition
+    └─ <quantifier> of <items> within <expr>
+       ├─ <quantifier>
+       │  └─ 2
+       ├─ <items: pattern_set>
+       │  └─ $a
+       │     $b*
+       └─ <expr>
+          └─ add
+             ├─ 100
+             └─ 28
+
+ rule test_3
+ └─ condition
+    └─ and
+       ├─ <quantifier> of <items> within <expr>
+       │  ├─ <quantifier>
+       │  │  └─ percentage
+       │  │     └─ 50
+       │  ├─ <items: pattern_set>
+       │  │  └─ them
+       │  └─ <expr>
+       │     └─ 1
+       └─ true
+

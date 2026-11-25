@@ -1,0 +1,28 @@
+warning[redundant_within]: `within` has no effect
+ --> line:6:5
+  |
+6 |     any of them within 100
+  |     ---         ---------- so this has no effect
+  |     |
+  |     this requires at most one pattern
+warning[redundant_within]: `within` has no effect
+  --> line:14:5
+   |
+14 |     1 of them within 100
+   |     -         ---------- so this has no effect
+   |     |
+   |     this requires at most one pattern
+warning[redundant_within]: `within` has no effect
+  --> line:22:5
+   |
+22 |     50% of them within 100
+   |     --          ---------- so this has no effect
+   |     |
+   |     this requires at most one pattern
+warning[redundant_within]: `within` has no effect
+  --> line:30:5
+   |
+30 |     all of ($a) within 100 and $b
+   |     ---         ---------- so this has no effect
+   |     |
+   |     this requires at most one pattern

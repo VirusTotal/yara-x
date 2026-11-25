@@ -1,0 +1,4 @@
+rule test {
+	condition:
+		2 of (true, false) within 10
+}

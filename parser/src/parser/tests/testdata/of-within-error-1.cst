@@ -1,0 +1,41 @@
+SOURCE_FILE@0..67
+  RULE_DECL@0..66
+    RULE_KW@0..4 "rule"
+    WHITESPACE@4..5 " "
+    IDENT@5..9 "test"
+    WHITESPACE@9..10 " "
+    L_BRACE@10..11 "{"
+    NEWLINE@11..12 "\n"
+    WHITESPACE@12..14 "  "
+    PATTERNS_BLK@14..37
+      STRINGS_KW@14..21 "strings"
+      COLON@21..22 ":"
+      NEWLINE@22..23 "\n"
+      WHITESPACE@23..27 "    "
+      PATTERN_DEF@27..37
+        PATTERN_IDENT@27..29 "$a"
+        WHITESPACE@29..30 " "
+        EQUAL@30..31 "="
+        WHITESPACE@31..32 " "
+        STRING_LIT@32..37 "\"foo\""
+    NEWLINE@37..38 "\n"
+    WHITESPACE@38..39 "\t"
+    CONDITION_BLK@39..64
+      CONDITION_KW@39..48 "condition"
+      COLON@48..49 ":"
+      NEWLINE@49..50 "\n"
+      WHITESPACE@50..52 "\t\t"
+      BOOLEAN_EXPR@52..54
+        BOOLEAN_TERM@52..54
+          PATTERN_IDENT@52..54 "$a"
+      WHITESPACE@54..55 " "
+      ERROR@55..64
+        WITHIN_KW@55..61 "within"
+        WHITESPACE@61..62 " "
+        INTEGER_LIT@62..64 "10"
+    NEWLINE@64..65 "\n"
+    R_BRACE@65..66 "}"
+  NEWLINE@66..67 "\n"
+
+ERRORS:
+- [55..61]: expecting `at`, `in`, operator or `}`, found `within`
