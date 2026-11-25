@@ -91,6 +91,13 @@ pub(crate) const DESIRED_ATOM_SIZE: usize = 4;
 /// automaton and its build time.
 pub(crate) const MAX_ATOMS_PER_REGEXP: usize = 16384;
 
+/// Maximum number of atoms that can be extracted from all the patterns in
+/// all the rules added to a compiler.
+///
+/// Every atom becomes a pattern in the Aho-Corasick automaton, and `daachorse`
+/// can't build an automaton with more than 2^24 - 1 patterns.
+pub(crate) const MAX_ATOMS: usize = (1 << 24) - 1;
+
 /// A substring extracted from a rule pattern. See the module documentation for
 /// a general explanation of what is an atom.
 ///

@@ -3098,3 +3098,95 @@ fn test_regexp_empty_capture_and_nullable_repetitions() {
     let mut scanner = Scanner::new(&rules);
     assert_eq!(scanner.scan(b"").unwrap().matching_rules().len(), 1);
 }
+
+#[test]
+fn test_too_many_atoms() {
+    use crate::errors::CompileError;
+
+    // 1. Single rule with multiple regexps exceeding the atom limit is
+    //    rejected and rolled back, leaving the compiler usable.
+    let mut compiler = Compiler::new();
+    compiler.max_atoms(100);
+    compiler
+        .add_source(r#"rule before { strings: $a = "wxyz" condition: $a }"#)
+        .unwrap();
+
+    // Each regexp yields 4 * 4 = 16 atoms; 7 regexps yield 112 atoms (> 100).
+    let mut src = String::from("rule too_many_regexps { strings:\n");
+    for n in 1..=7 {
+        src.push_str(&format!("$ = /[a-d][a-d].{{{n}}}/s\n"));
+    }
+    src.push_str("condition: any of them }");
+
+    let err = compiler.add_source(src.as_str()).unwrap_err();
+    assert!(matches!(err, CompileError::TooManyAtoms(_)), "{err}");
+
+    // 2. Single rule with `xor` text string (256 atoms) exceeding the limit.
+    let err = compiler
+        .add_source(
+            r#"rule too_many_xor { strings: $a = "wxyz" xor condition: $a }"#,
+        )
+        .unwrap_err();
+    assert!(matches!(err, CompileError::TooManyAtoms(_)), "{err}");
+
+    // 3. Single chained regexp exceeding the limit stops early and rolls back.
+    let err = compiler
+        .add_source(
+            r#"rule too_many_chained {
+                strings:
+                    $a = /[a-d][a-d].*[a-d][a-d].*[a-d][a-d].*[a-d][a-d].*[a-d][a-d].*[a-d][a-d].*[a-d][a-d]/s
+                condition:
+                    $a
+            }"#,
+        )
+        .unwrap_err();
+    assert!(matches!(err, CompileError::TooManyAtoms(_)), "{err}");
+
+    // 4. Single alternation of literals exceeding the limit rolls back.
+    let mut alt = String::from("rule too_many_alt { strings: $a = /");
+    for i in 0..105 {
+        if i > 0 {
+            alt.push('|');
+        }
+        alt.push_str(&format!("lit{i:03}"));
+    }
+    alt.push_str("/ condition: $a }");
+    let err = compiler.add_source(alt.as_str()).unwrap_err();
+    assert!(matches!(err, CompileError::TooManyAtoms(_)), "{err}");
+
+    // 5. Accumulation across namespaces: the first rule succeeds, the second
+    //    pushes the total over the limit and is rejected, while the first is
+    //    preserved.
+    compiler.new_namespace("ns1");
+    compiler
+        .add_source(
+            r#"rule ok_ns1 {
+                strings:
+                    $a = /[a-d][a-d][a-d]/
+                condition:
+                    $a
+            }"#,
+        )
+        .unwrap(); // 1 + 64 = 65 atoms
+
+    compiler.new_namespace("ns2");
+    let err = compiler
+        .add_source(
+            r#"rule fail_ns2 {
+                strings:
+                    $a = /[e-h][e-h][e-h]/
+                condition:
+                    $a
+            }"#,
+        )
+        .unwrap_err(); // 65 + 64 = 129 > 100
+    assert!(matches!(err, CompileError::TooManyAtoms(_)), "{err}");
+
+    // Compiler builds without panicking and only the accepted rules remain.
+    let rules = compiler.build();
+    assert_eq!(rules.atoms().len(), 65);
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(b"wxyz").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"aaa").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"eee").unwrap().matching_rules().len(), 0);
+}

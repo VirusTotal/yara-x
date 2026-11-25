@@ -34,7 +34,7 @@ use crate::compiler::emit::{EmitContext, emit_rule_condition};
 use crate::compiler::errors::{
     CompileError, ConditionTooLarge, ConflictingRuleIdentifier, CustomError,
     DuplicateRule, DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8,
-    UnknownModule, UnusedPattern,
+    TooManyAtoms, UnknownModule, UnusedPattern,
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{CompileContext, VarStack};
@@ -418,6 +418,9 @@ pub struct Compiler<'a> {
     /// sub-pattern it belongs to.
     atoms: Vec<SubPatternAtom>,
 
+    /// Maximum number of atoms allowed across all rules added to this compiler.
+    max_atoms: usize,
+
     /// A vector that contains the code for all regexp patterns (this includes
     /// hex patterns which are just a special case of regexp). The code for
     /// each regexp is appended to the vector, during the compilation process
@@ -556,6 +559,7 @@ impl<'a> Compiler<'a> {
             sub_patterns: Vec::new(),
             anchored_sub_patterns: Vec::new(),
             atoms: Vec::new(),
+            max_atoms: MAX_ATOMS,
             re_code: Vec::new(),
             imported_modules: Vec::new(),
             ignored_modules: FxHashSet::default(),
@@ -576,6 +580,12 @@ impl<'a> Compiler<'a> {
             literal_sets: FxHashMap::default(),
             rule_constraints: Vec::new(),
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn max_atoms(&mut self, max: usize) -> &mut Self {
+        self.max_atoms = max;
+        self
     }
 
     /// Adds a directory to the list of directories where the compiler should
@@ -2035,6 +2045,19 @@ impl Compiler<'_> {
                         }
                     }
                 };
+                // The Aho-Corasick automaton built by `Compiler::build` can't
+                // hold more than `max_atoms` atoms across all rules added to
+                // the compiler. Enforce the limit here while the rule can still
+                // be rolled back, since `Compiler::build` is infallible.
+                if self.atoms.len() > self.max_atoms {
+                    self.restore_snapshot(snapshot);
+                    return Err(TooManyAtoms::build(
+                        &self.report_builder,
+                        self.max_atoms,
+                        self.report_builder
+                            .span_to_code_loc(rule.identifier.span()),
+                    ));
+                }
                 pending_patterns.remove(pattern_id);
             }
         }
@@ -2507,6 +2530,7 @@ impl Compiler<'_> {
             flags.insert(SubPatternFlags::FullwordRight);
         }
 
+        let max_atoms = self.max_atoms;
         let mut process_literal = |literal: &hir::Literal, wide: bool| {
             let pattern_lit_id =
                 self.intern_literal(literal.0.as_bytes(), wide);
@@ -2539,6 +2563,8 @@ impl Compiler<'_> {
                     SubPatternAtom::from_atom,
                 );
             }
+
+            self.atoms.len()
         };
 
         let inner;
@@ -2564,11 +2590,11 @@ impl Compiler<'_> {
                     .iter()
                     .map(|l| cast!(l.kind(), hir::HirKind::Literal));
                 for literal in literals {
-                    if raw {
-                        process_literal(literal, false);
+                    if raw && process_literal(literal, false) > max_atoms {
+                        break;
                     }
-                    if wide {
-                        process_literal(literal, true);
+                    if wide && process_literal(literal, true) > max_atoms {
+                        break;
                     }
                 }
             }
@@ -2660,6 +2686,9 @@ impl Compiler<'_> {
         }
 
         for (i, p) in trailing.iter().enumerate() {
+            if self.atoms.len() > self.max_atoms {
+                break;
+            }
             let mut flags = common_flags;
 
             // The last pattern in the chain has the `LastInChain` flag and
