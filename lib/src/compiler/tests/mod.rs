@@ -1569,6 +1569,41 @@ condition:
 }
 
 #[test]
+fn nesting_limit() {
+    // The parser accepts conditions where expressions are nested up to 100
+    // levels deep. The passes that recurse once per level (AST-to-IR and code
+    // emission) must handle the deepest accepted conditions without
+    // overflowing the stack — even on a 2 MiB test thread in dev builds and
+    // with a nested regexp at the bottom.
+    let src = format!(
+        "rule test {{ condition: filesize{} == 0 }}",
+        " | filesize".repeat(98)
+    );
+    assert!(Compiler::new().add_source(src.as_str()).is_ok());
+
+    let regexp = format!("/{}c{}/", "(a|".repeat(82), ")?".repeat(82));
+    let src = format!(
+        "rule test {{ condition: \"a\" matches {}{} }}",
+        regexp,
+        " == 1".repeat(98)
+    );
+    assert!(Compiler::new().add_source(src.as_str()).is_ok());
+
+    // One level past `MAX_AST_DEPTH` is rejected cleanly.
+    let src = format!(
+        "rule test {{ condition: filesize{} == 0 }}",
+        " | filesize".repeat(99)
+    );
+    assert!(
+        Compiler::new()
+            .add_source(src.as_str())
+            .unwrap_err()
+            .to_string()
+            .contains("nesting limit reached")
+    );
+}
+
+#[test]
 fn utf8_errors() {
     let mut src =
         "rule test {condition: true}".to_string().as_bytes().to_vec();

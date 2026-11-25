@@ -155,7 +155,15 @@ impl<'src, I> Builder<'src, I>
 where
     I: Iterator<Item = Event>,
 {
-    const MAX_AST_DEPTH: usize = crate::parser::MAX_CST_DEPTH;
+    /// Maximum allowed nesting depth of the expressions in a rule condition.
+    ///
+    /// This limit is much lower than [`crate::parser::MAX_CST_DEPTH`] because
+    /// downstream passes that consume the AST, such as the AST-to-IR
+    /// conversion and WASM code emitter, recurse once per AST level with
+    /// substantially larger stack frames than the parser. Keeping AST depth
+    /// bounded to 100 prevents deep conditions from overflowing default
+    /// thread stacks (e.g. 1–2 MiB).
+    const MAX_AST_DEPTH: usize = 100;
 
     /// Checks that the depth of `expr` does not exceed [`Self::MAX_AST_DEPTH`].
     fn check_ast_depth(&mut self, expr: &Expr) -> Result<(), BuilderError> {

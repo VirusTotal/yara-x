@@ -238,7 +238,29 @@ fn nesting_error() {
         ast.errors(),
         &[Error::SyntaxError {
             message: "nesting limit reached".to_string(),
-            span: Span(27..96032),
+            span: Span(27..99632),
+        }]
+    );
+    assert_eq!(ast.rules().count(), 1);
+
+    // A chain of `BinaryExpr` operators with exactly `MAX_AST_DEPTH` levels
+    // is accepted, while one more level hits the limit.
+    let source =
+        format!("rule test_1 {{ condition: {} }}", vec!["1"; 100].join(" | "));
+    let ast = AST::from(source.as_str());
+    assert!(ast.errors().is_empty());
+    assert_eq!(ast.rules().count(), 1);
+
+    let source = format!(
+        "rule test_1 {{ condition: {} }}\nrule test_2 {{ condition: true }}",
+        vec!["1"; 101].join(" | ")
+    );
+    let ast = AST::from(source.as_str());
+    assert_eq!(
+        ast.errors(),
+        &[Error::SyntaxError {
+            message: "nesting limit reached".to_string(),
+            span: Span(25..26),
         }]
     );
     assert_eq!(ast.rules().count(), 1);
@@ -254,13 +276,13 @@ fn nesting_error() {
         ast.errors(),
         &[Error::SyntaxError {
             message: "nesting limit reached".to_string(),
-            span: Span(25..4030),
+            span: Span(25..7630),
         }]
     );
     assert_eq!(ast.rules().count(), 1);
 
     // Parenthesized sub-chains accumulate their AST depth across parentheses.
-    let chunk = vec!["1"; 400].join(" | ");
+    let chunk = vec!["1"; 40].join(" | ");
     let source = format!(
         "rule test_1 {{ condition: (({chunk}) | {chunk}) | {chunk} == 0 }}\nrule test_2 {{ condition: true }}",
     );
