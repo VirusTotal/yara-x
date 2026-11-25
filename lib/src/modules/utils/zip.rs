@@ -9,6 +9,11 @@ use tinyzip::Archive;
 
 use crate::modules::protos::zip::{Compression, Entry, Zip as ZipProto};
 
+/// Maximum number of bytes inflated from a single compressed ZIP entry
+/// (64 MiB). DEFLATE expands up to ~1032:1, so without this limit a few
+/// megabytes of compressed data can inflate to gigabytes (ZIP bomb).
+const MAX_INFLATED_SIZE: u64 = 64 * 1024 * 1024;
+
 pub(crate) enum CachedZip<'a> {
     NotZip,
     Zip(Zip<'a>),
@@ -36,10 +41,12 @@ impl<'a> CachedZip<'a> {
 }
 
 impl<'a> Zip<'a> {
-    pub(crate) fn get_file_content<'b>(
-        &'b mut self,
-        path: &str,
-    ) -> Option<&'b [u8]> {
+    /// Returns the content of the file at `path`.
+    ///
+    /// For compressed entries, at most [`MAX_INFLATED_SIZE`] bytes are
+    /// inflated; any data beyond that limit is discarded and the returned
+    /// content is truncated.
+    pub(crate) fn get_file_content(&mut self, path: &str) -> Option<&[u8]> {
         // Check if the content for the given path is already cached, it not,
         // put it into the cache.
         if !self.cached_contents.contains_key(path) {
@@ -52,17 +59,21 @@ impl<'a> Zip<'a> {
             let content = match entry.compression() {
                 Ok(tinyzip::Compression::Stored) => Cow::Borrowed(raw_bytes),
                 Ok(tinyzip::Compression::Deflated) => {
-                    let mut decoder =
-                        flate2::read::DeflateDecoder::new(raw_bytes);
+                    let decoder = flate2::read::DeflateDecoder::new(raw_bytes);
                     // Pre-allocate based on the compressed data we actually
                     // have, not the entry's `uncompressed_size` header field,
                     // which is attacker-controlled (up to u64::MAX via a Zip64
                     // extra field) and unvalidated -- trusting it makes
                     // `Vec::with_capacity` panic with "capacity overflow" or
                     // request a huge allocation. `read_to_end` grows the
-                    // buffer as needed.
-                    let mut buf = Vec::with_capacity(raw_bytes.len());
-                    decoder.read_to_end(&mut buf).ok()?;
+                    // buffer as needed, up to `MAX_INFLATED_SIZE`.
+                    let mut buf = Vec::with_capacity(
+                        raw_bytes.len().min(MAX_INFLATED_SIZE as usize),
+                    );
+                    decoder
+                        .take(MAX_INFLATED_SIZE)
+                        .read_to_end(&mut buf)
+                        .ok()?;
                     Cow::Owned(buf)
                 }
                 _ => return None,
@@ -145,5 +156,72 @@ mod tests {
             assert!(zip_proto.is_zip());
             assert_eq!(zip_proto.entries.len(), 0);
         }
+    }
+
+    /// Builds a ZIP archive with a single DEFLATE-compressed entry that
+    /// inflates to `size` zero bytes.
+    fn zip_with_deflated_zeros(name: &str, size: u64) -> Vec<u8> {
+        let mut encoder = flate2::write::DeflateEncoder::new(
+            Vec::new(),
+            flate2::Compression::fast(),
+        );
+        std::io::copy(&mut std::io::repeat(0).take(size), &mut encoder)
+            .unwrap();
+        let deflated = encoder.finish().unwrap();
+
+        // Fields shared by the local file header and the central directory
+        // header: version needed, flags, method (8 = DEFLATE), time, date,
+        // CRC-32, compressed size, uncompressed size, name length, extra
+        // field length.
+        let mut fields = Vec::new();
+        fields.extend_from_slice(&[20, 0, 0, 0, 8, 0, 0, 0, 0, 0]);
+        fields.extend_from_slice(&[0; 4]);
+        fields.extend_from_slice(&(deflated.len() as u32).to_le_bytes());
+        fields.extend_from_slice(&(size as u32).to_le_bytes());
+        fields.extend_from_slice(&(name.len() as u16).to_le_bytes());
+        fields.extend_from_slice(&[0; 2]);
+
+        let mut zip = Vec::new();
+        // Local file header.
+        zip.extend_from_slice(b"PK\x03\x04");
+        zip.extend_from_slice(&fields);
+        zip.extend_from_slice(name.as_bytes());
+        zip.extend_from_slice(&deflated);
+        // Central directory header.
+        let cd_offset = zip.len() as u32;
+        zip.extend_from_slice(b"PK\x01\x02");
+        zip.extend_from_slice(&[20, 0]);
+        zip.extend_from_slice(&fields);
+        zip.extend_from_slice(&[0; 14]);
+        zip.extend_from_slice(name.as_bytes());
+        let cd_size = zip.len() as u32 - cd_offset;
+        // End of central directory record.
+        zip.extend_from_slice(b"PK\x05\x06");
+        zip.extend_from_slice(&[0, 0, 0, 0, 1, 0, 1, 0]);
+        zip.extend_from_slice(&cd_size.to_le_bytes());
+        zip.extend_from_slice(&cd_offset.to_le_bytes());
+        zip.extend_from_slice(&[0; 2]);
+        zip
+    }
+
+    #[test]
+    fn test_zip_inflated_size_limit() {
+        // An entry below the limit is inflated completely.
+        let zip = zip_with_deflated_zeros("small.bin", 1024);
+        let CachedZip::Zip(mut cached) = CachedZip::new(&zip) else {
+            panic!("not a ZIP")
+        };
+        assert_eq!(cached.get_file_content("small.bin").unwrap().len(), 1024);
+
+        // An entry that inflates to more than `MAX_INFLATED_SIZE` bytes is
+        // truncated at the limit.
+        let zip = zip_with_deflated_zeros("bomb.bin", MAX_INFLATED_SIZE + 1);
+        let CachedZip::Zip(mut cached) = CachedZip::new(&zip) else {
+            panic!("not a ZIP")
+        };
+        assert_eq!(
+            cached.get_file_content("bomb.bin").unwrap().len() as u64,
+            MAX_INFLATED_SIZE
+        );
     }
 }
