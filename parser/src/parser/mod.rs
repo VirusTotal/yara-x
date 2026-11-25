@@ -931,6 +931,19 @@ impl<'src> ParserImpl<'src> {
         self
     }
 
+    /// Applies `parser` while caching failures at the current token position.
+    ///
+    /// If `kind` has already failed at the current token position, this
+    /// transitions immediately to [`State::Failure`] without invoking `parser`.
+    /// Otherwise, `parser` is run, and if it finishes in [`State::Failure`] the
+    /// failure is recorded in the cache so subsequent backtracks to the same
+    /// position fail in O(1) time.
+    ///
+    /// Only failures are cached (not successes, [`State::OutOfFuel`], or
+    /// [`State::MaxDepthReached`]). Callers should ensure leading trivia has
+    /// already been consumed (e.g. via [`ParserImpl::then`] or [`Alt::alt`])
+    /// so the token position is normalized, and choose a `kind` that uniquely
+    /// identifies the cached production across all `cached` call sites.
     fn cached<P>(&mut self, kind: SyntaxKind, parser: P) -> &mut Self
     where
         P: Fn(&mut Self) -> &mut Self,
@@ -1604,14 +1617,19 @@ impl ParserImpl<'_> {
     /// RANGE := `(` EXPR `.` `.` EXPR `)`
     /// ``
     fn range(&mut self) -> &mut Self {
-        self.begin(RANGE)
-            .expect(t!(L_PAREN))
-            .then(Self::expr)
-            .expect(t!(DOT))
-            .expect(t!(DOT))
-            .then(Self::expr)
-            .expect(t!(R_PAREN))
-            .end()
+        // Failures are cached for the same reason as in `of_expr`. An
+        // iterable like `(f(...), 1)` is parsed as a range until finding the
+        // comma, and then it is parsed again as a tuple of expressions.
+        self.cached(RANGE, |p| {
+            p.begin(RANGE)
+                .expect(t!(L_PAREN))
+                .then(Self::expr)
+                .expect(t!(DOT))
+                .expect(t!(DOT))
+                .then(Self::expr)
+                .expect(t!(R_PAREN))
+                .end()
+        })
     }
 
     /// Parses a term.
@@ -1744,22 +1762,37 @@ impl ParserImpl<'_> {
     /// )
     /// ``
     fn of_expr(&mut self) -> &mut Self {
-        self.begin(OF_EXPR)
-            .then(Self::quantifier)
-            .expect(t!(OF_KW))
-            .begin_alt()
-            .alt(|p| {
-                p.begin_alt()
-                    .alt(|p| p.expect(t!(THEM_KW)))
-                    .alt(Self::pattern_ident_tuple)
-                    .end_alt()
-                    .if_next(t!(AT_KW | IN_KW), Self::at_or_in)
-            })
-            .alt(|p| {
-                p.boolean_expr_tuple().not(|p| p.expect(t!(AT_KW | IN_KW)))
-            })
-            .end_alt()
-            .end()
+        // `boolean_term` tries `of_expr` before plain `expr`. When parsing a
+        // call like `f(g(1))` that is not followed by `of`, `of_expr` parses
+        // the entire `f(g(1))` as its `quantifier` and only fails when `of` is
+        // missing. Because `expr` itself succeeded, `expr`'s failure cache does
+        // not record anything, so `boolean_term` backtracks and parses
+        // `f(g(1))` again as a plain `expr`.
+        //
+        // Function call arguments are themselves `boolean_expr`s, so each
+        // re-parse of the outer call re-enters `boolean_term` (and `of_expr`)
+        // on the inner call `g(1)`, causing exponential backtracking on nested
+        // calls like `f(f(f(...)))`. Caching `OF_EXPR` failures ensures that
+        // once `of_expr` fails at an inner call, later visits caused by outer
+        // backtracking skip `of_expr` immediately.
+        self.cached(OF_EXPR, |p| {
+            p.begin(OF_EXPR)
+                .then(Self::quantifier)
+                .expect(t!(OF_KW))
+                .begin_alt()
+                .alt(|p| {
+                    p.begin_alt()
+                        .alt(|p| p.expect(t!(THEM_KW)))
+                        .alt(Self::pattern_ident_tuple)
+                        .end_alt()
+                        .if_next(t!(AT_KW | IN_KW), Self::at_or_in)
+                })
+                .alt(|p| {
+                    p.boolean_expr_tuple().not(|p| p.expect(t!(AT_KW | IN_KW)))
+                })
+                .end_alt()
+                .end()
+        })
     }
 
     /// Parses `with` expression.
@@ -1825,7 +1858,12 @@ impl ParserImpl<'_> {
             // not followed by %. We can't make it an expression followed by an
             // optional % because that leads to ambiguity, as expressions can
             // contain the % operator (mod).
-            .alt(|p| p.term().expect(t!(PERCENT)))
+            //
+            // When the term is not followed by %, it is parsed again as an
+            // expression. The failure is cached for the same reason as in
+            // `of_expr`. `TERM %` doesn't have its own `SyntaxKind`, so the
+            // cache key is `PERCENT`.
+            .alt(|p| p.cached(PERCENT, |p| p.term().expect(t!(PERCENT))))
             .alt(|p| p.expr().not(|p| p.expect(t!(PERCENT))))
             .end_alt()
             .end()
