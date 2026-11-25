@@ -2451,10 +2451,10 @@ impl<'r> PinnedScanContext<'r> {
     /// Returns a reference to the underlying [`ScanContext`].
     #[cfg(feature = "rules-profiling")]
     #[inline]
-    pub(crate) fn get<'d>(&'a self) -> &'d ScanContext<'r, 'd> {
+    pub(crate) fn get<'d>(&'d self) -> &'d ScanContext<'r, 'd> {
         // SAFETY: `self._ctx` guarantees `'r` strictly outlives `self`, and
         // both the reference lifetime and scanned-data lifetime `'d` are
-        // bounded by `&'a self`.
+        // bounded by `&'d self`.
         unsafe {
             transmute::<&ScanContext<'static, 'static>, &ScanContext<'r, 'd>>(
                 self.store.data(),
@@ -2467,7 +2467,7 @@ impl<'r> PinnedScanContext<'r> {
     pub(crate) fn get_mut<'d>(&'d mut self) -> &'d mut ScanContext<'r, 'd> {
         // SAFETY: `self._ctx` guarantees `'r` strictly outlives `self`, and
         // both the exclusive borrow and scanned-data lifetime `'a` are bounded
-        // by `&'a mut self`, preventing aliasing borrows.
+        // by `&'d mut self`, preventing aliasing borrows.
         unsafe {
             transmute::<
                 &mut ScanContext<'static, 'static>,
