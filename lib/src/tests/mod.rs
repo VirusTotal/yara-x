@@ -4013,6 +4013,26 @@ fn base64() {
         b"Z\x00m\x009\x00v\x00Y\x00m\x00F\x00y\x01"
     );
 
+    // The last zero byte is missing, so the pattern doesn't match (all three
+    // padding alignments where the last searched char ends the match).
+    pattern_false!(
+        r#""foobar" base64wide"#,
+        // base64("foobar") in wide form, without the last byte
+        b"Z\x00m\x009\x00v\x00Y\x00m\x00F\x00y"
+    );
+
+    pattern_false!(
+        r#""fooba" base64wide"#,
+        // base64("xfooba") in wide form, without the last byte
+        b"e\x00G\x00Z\x00v\x00b\x002\x00J\x00h"
+    );
+
+    pattern_false!(
+        r#""foob" base64wide"#,
+        // base64("xxfoob") in wide form, without the last byte
+        b"e\x00H\x00h\x00m\x00b\x002\x009\x00i"
+    );
+
     pattern_true!(
         r#""foobar" base64wide"#,
         // base64("xfoobar") in wide form

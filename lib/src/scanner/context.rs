@@ -1841,6 +1841,16 @@ fn verify_base64(
         match_len *= 2;
     }
 
+    let match_end = match_start.checked_add(match_len)?;
+
+    // The match must lie completely within the scanned data. In wide mode
+    // the data may end right after the last base64 character, before the
+    // zero byte that completes it. In such cases there's no match because
+    // of the missing zero byte.
+    if match_end > scanned_data.len() {
+        return None;
+    }
+
     // decode_range is the range within the scanned data that we are going
     // to decode as base64. It starts at match_start - decode_start_delta,
     // but if match_start < decode_start_delta this is not a real match.
@@ -1900,7 +1910,7 @@ fn verify_base64(
     let decoded_pattern = decoded.get(padding..padding + pattern.len())?;
 
     if pattern.eq(decoded_pattern) {
-        Some(match_start..match_start + match_len)
+        Some(match_start..match_end)
     } else {
         None
     }
