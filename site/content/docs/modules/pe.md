@@ -140,6 +140,28 @@ rule ProcessMemory {
 }
 ```
 
+### import_rva(dll_name, fn_name)
+
+Returns the RVA (relative virtual address) of the function `fn_name` imported
+from `dll_name`. Both `dll_name` and `fn_name` are case-insensitive. The result
+is `undefined` if the PE does not import such a function.
+
+### import_rva(dll_name, ordinal)
+
+Returns the RVA (relative virtual address) of the function imported by ordinal
+number `ordinal` from `dll_name`. The DLL name is case-insensitive. The result
+is `undefined` if the PE does not import such a function.
+
+### delayed_import_rva(dll_name, fn_name)
+
+Like `import_rva(dll_name, fn_name)`, but searches the delayed imports instead
+of the standard imports.
+
+### delayed_import_rva(dll_name, ordinal)
+
+Like `import_rva(dll_name, ordinal)`, but searches the delayed imports instead
+of the standard imports.
+
 ### is_32bit()
 
 Returns true if the file is a 32-bit PE.
@@ -199,6 +221,40 @@ in [Mandiant's blog](https://www.mandiant.com/resources/blog/tracking-malware-im
 The returned hash string is always in lowercase.
 
 {{< /callout >}}
+
+### locale(locale_id)
+
+Returns true if the PE contains some resource with the specified locale
+identifier. Locale identifiers are 16-bit integers; the full list is available
+in [Microsoft's documentation](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11).
+
+#### Example
+
+```
+import "pe"
+
+rule EnglishUS {
+    condition:
+        pe.locale(0x0409) // en-US
+}
+```
+
+### language(language_id)
+
+Returns true if the PE contains some resource with the specified language
+identifier. Language identifiers are the lowest 8 bits of locale identifiers;
+the full list is available in [Microsoft's documentation](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11).
+
+#### Example
+
+```
+import "pe"
+
+rule English {
+    condition:
+        pe.language(0x09) // English
+}
+```
 
 ### rich_signature.version(version, [toolid])
 
@@ -621,6 +677,11 @@ Each of the possible values in the `machine` field.
 | MACHINE_SH5         | 424    |
 | MACHINE_THUMB       | 450    |
 | MACHINE_WCEMIPSV2   | 361    |
+| MACHINE_TARGET_HOST | 1      |
+| MACHINE_SH3E        | 420    |
+| MACHINE_TRICORE     | 1312   |
+| MACHINE_CEF         | 3311   |
+| MACHINE_CEE         | 49390  |
 
 #### Example
 

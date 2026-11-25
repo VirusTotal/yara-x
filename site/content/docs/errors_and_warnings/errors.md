@@ -703,3 +703,19 @@ error[E048]: condition is too large
   |      ^^^^^^^ the condition of this rule is too large
 ```
 
+## E049 {#E049}
+
+The patterns in the rules produce too many atoms. Atoms are the short
+sub-patterns that the compiler extracts from every pattern and searches for
+while scanning. The limit applies to the total number of atoms across all
+rules added to the compiler, and the error is reported for the rule that
+exceeds it.
+
+```text
+error[E049]: too many atoms
+ --> line:1:6
+  |
+1 | rule massive {
+  |      ^^^^^^^ the patterns in this rule raise the total number of atoms above 16777215
+```
+

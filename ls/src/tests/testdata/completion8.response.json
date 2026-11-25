@@ -800,6 +800,24 @@
     }
   },
   {
+    "insertText": "MACHINE_CEE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "MACHINE_CEE",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_CEF",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "MACHINE_CEF",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
     "insertText": "MACHINE_EBC",
     "insertTextFormat": 2,
     "kind": 21,
@@ -980,6 +998,15 @@
     }
   },
   {
+    "insertText": "MACHINE_SH3E",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "MACHINE_SH3E",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
     "insertText": "MACHINE_SH4",
     "insertTextFormat": 2,
     "kind": 21,
@@ -998,10 +1025,28 @@
     }
   },
   {
+    "insertText": "MACHINE_TARGET_HOST",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "MACHINE_TARGET_HOST",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
     "insertText": "MACHINE_THUMB",
     "insertTextFormat": 2,
     "kind": 21,
     "label": "MACHINE_THUMB",
+    "labelDetails": {
+      "description": "const integer"
+    }
+  },
+  {
+    "insertText": "MACHINE_TRICORE",
+    "insertTextFormat": 2,
+    "kind": 21,
+    "label": "MACHINE_TRICORE",
     "labelDetails": {
       "description": "const integer"
     }

@@ -13,3 +13,4 @@
 *.json text eol=lf
 *.toml text eol=lf
 *.md text eol=lf
+*.1 text eol=lf

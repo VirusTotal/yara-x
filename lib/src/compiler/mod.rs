@@ -34,18 +34,18 @@ use crate::compiler::emit::{EmitContext, emit_rule_condition};
 use crate::compiler::errors::{
     CompileError, ConditionTooLarge, ConflictingRuleIdentifier, CustomError,
     DuplicateRule, DuplicateTag, EmitWasmError, InvalidRegexp, InvalidUTF8,
-    UnknownModule, UnusedPattern,
+    TooManyAtoms, UnknownModule, UnusedPattern,
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::{CompileContext, VarStack};
 use crate::re::hir::{ChainedPattern, ChainedPatternGap};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
-use crate::types::{Func, Struct, TypeValue};
+use crate::types::{Struct, TypeValue};
 use crate::utils::cast;
 use crate::variables::{Variable, VariableError, is_valid_identifier};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{WasmSymbols, wasm_exports};
+use crate::wasm::{WasmExport, WasmSymbols};
 use crate::{re, wasm};
 
 pub(crate) use crate::compiler::atoms::*;
@@ -418,6 +418,9 @@ pub struct Compiler<'a> {
     /// sub-pattern it belongs to.
     atoms: Vec<SubPatternAtom>,
 
+    /// Maximum number of atoms allowed across all rules added to this compiler.
+    max_atoms: usize,
+
     /// A vector that contains the code for all regexp patterns (this includes
     /// hex patterns which are just a special case of regexp). The code for
     /// each regexp is appended to the vector, during the compilation process
@@ -495,11 +498,10 @@ impl<'a> Compiler<'a> {
         let global_symbols = symbol_table.push_new();
 
         // Add symbols for built-in functions like uint8, uint16, etc.
-        for export in wasm_exports().filter(|e| e.builtin()) {
-            let func = Rc::new(Func::from(export.mangled_name));
-            let symbol = Symbol::Func(func);
-
-            global_symbols.borrow_mut().insert(export.name, symbol);
+        for (name, func) in WasmExport::get_functions(|e| e.builtin()) {
+            global_symbols
+                .borrow_mut()
+                .insert(name, Symbol::Func(Rc::new(func)));
         }
 
         // Create the default namespace. Rule identifiers will be added to this
@@ -557,6 +559,7 @@ impl<'a> Compiler<'a> {
             sub_patterns: Vec::new(),
             anchored_sub_patterns: Vec::new(),
             atoms: Vec::new(),
+            max_atoms: MAX_ATOMS,
             re_code: Vec::new(),
             imported_modules: Vec::new(),
             ignored_modules: FxHashSet::default(),
@@ -577,6 +580,12 @@ impl<'a> Compiler<'a> {
             literal_sets: FxHashMap::default(),
             rule_constraints: Vec::new(),
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn max_atoms(&mut self, max: usize) -> &mut Self {
+        self.max_atoms = max;
+        self
     }
 
     /// Adds a directory to the list of directories where the compiler should
@@ -844,11 +853,8 @@ impl<'a> Compiler<'a> {
             // An alternative is changing the `Rc` in some variants of `TypeValue`
             // to `Arc`, as the root cause that prevents `Struct` from being `Send`
             // is the use of `Rc` in `TypeValue`.
-            let serialized_globals = bincode::serde::encode_to_vec(
-                this.root_struct,
-                bincode::config::standard().with_variable_int_encoding(),
-            )
-            .expect("failed to serialize global variables");
+            let serialized_globals = postcard::to_stdvec(&this.root_struct)
+                .expect("failed to serialize global variables");
 
             let mut filesize_bounds = FxHashMap::default();
             let mut header_constraints = FxHashMap::default();
@@ -886,8 +892,10 @@ impl<'a> Compiler<'a> {
                     warnings: this.warnings.into(),
                     filesize_bounds,
                     header_constraints,
-                    regex_sets: this.regex_sets,
+                    regexp_sets: this.regex_sets,
                     literal_sets: this.literal_sets,
+                    compiled_regexps: Vec::new(),
+                    compiled_regexp_sets: Vec::new(),
                     fast_scan_max_matches: this.fast_scan_max_matches,
                     rules_profiling_enabled: cfg!(feature = "rules-profiling"),
                 },
@@ -916,6 +924,7 @@ impl<'a> Compiler<'a> {
         #[cfg(feature = "logging")]
         info!("WASM module build time: {:?}", Instant::elapsed(&start));
 
+        rules.init_regexp_caches();
         rules.build_ac_automaton();
         rules
     }
@@ -2036,6 +2045,19 @@ impl Compiler<'_> {
                         }
                     }
                 };
+                // The Aho-Corasick automaton built by `Compiler::build` can't
+                // hold more than `max_atoms` atoms across all rules added to
+                // the compiler. Enforce the limit here while the rule can still
+                // be rolled back, since `Compiler::build` is infallible.
+                if self.atoms.len() > self.max_atoms {
+                    self.restore_snapshot(snapshot);
+                    return Err(TooManyAtoms::build(
+                        &self.report_builder,
+                        self.max_atoms,
+                        self.report_builder
+                            .span_to_code_loc(rule.identifier.span()),
+                    ));
+                }
                 pending_patterns.remove(pattern_id);
             }
         }
@@ -2508,6 +2530,7 @@ impl Compiler<'_> {
             flags.insert(SubPatternFlags::FullwordRight);
         }
 
+        let max_atoms = self.max_atoms;
         let mut process_literal = |literal: &hir::Literal, wide: bool| {
             let pattern_lit_id =
                 self.intern_literal(literal.0.as_bytes(), wide);
@@ -2540,6 +2563,8 @@ impl Compiler<'_> {
                     SubPatternAtom::from_atom,
                 );
             }
+
+            self.atoms.len()
         };
 
         let inner;
@@ -2565,11 +2590,11 @@ impl Compiler<'_> {
                     .iter()
                     .map(|l| cast!(l.kind(), hir::HirKind::Literal));
                 for literal in literals {
-                    if raw {
-                        process_literal(literal, false);
+                    if raw && process_literal(literal, false) > max_atoms {
+                        break;
                     }
-                    if wide {
-                        process_literal(literal, true);
+                    if wide && process_literal(literal, true) > max_atoms {
+                        break;
                     }
                 }
             }
@@ -2661,6 +2686,9 @@ impl Compiler<'_> {
         }
 
         for (i, p) in trailing.iter().enumerate() {
+            if self.atoms.len() > self.max_atoms {
+                break;
+            }
             let mut flags = common_flags;
 
             // The last pattern in the chain has the `LastInChain` flag and

@@ -1,0 +1,278 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_UNKNOWN
+os_version:
+    major: 0
+    minor: 0
+subsystem_version:
+    major: 0
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 0
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 0x102  # EXECUTABLE_IMAGE | MACHINE_32BIT
+dll_characteristics: 0x0
+timestamp: 0  # 1970-01-01 00:00:00 UTC
+image_base: 0x0
+checksum: 0
+base_of_code: 0x0
+base_of_data: 0x0
+entry_point_raw: 0x0
+section_alignment: 0x0
+file_alignment: 0x0
+loader_flags: 0x0
+size_of_optional_header: 0xe0
+size_of_code: 0x0
+size_of_initialized_data: 0x0
+size_of_uninitialized_data: 0x0
+size_of_image: 0x0
+size_of_headers: 0x200
+size_of_stack_reserve: 0x0
+size_of_stack_commit: 0x0
+size_of_heap_reserve: 0x0
+size_of_heap_commit: 0x0
+pointer_to_symbol_table: 0x0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 0
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 0
+number_of_version_infos: 0
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 5
+data_directories:
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x200
+    size: 0x1078
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+is_signed: true
+signatures:
+  - subject: "/CN=valid"
+    issuer: "/CN=valid"
+    thumbprint: "a310d679cc379f80045c171f8b5612793c357084"
+    version: 3
+    algorithm: "dsa_with_SHA256"
+    algorithm_oid: "2.16.840.1.101.3.4.3.2"
+    serial: "12:34"
+    not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+    not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+    verified: true
+    digest_alg: "sha256"
+    digest: "b4d2338474f386b4ea1e40c325e7efb8f3027c3bd8c4cb883bef06a946660a4f"
+    file_digest: "b4d2338474f386b4ea1e40c325e7efb8f3027c3bd8c4cb883bef06a946660a4f"
+    number_of_certificates: 1
+    number_of_countersignatures: 0
+    signer_info:
+        digest: "4b88b46bfd64db1b1420d2502ff4adc60d3613c88052cde48b10001ee22cf912"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/CN=valid"
+            subject: "/CN=valid"
+            thumbprint: "a310d679cc379f80045c171f8b5612793c357084"
+            version: 3
+            algorithm: "dsa_with_SHA256"
+            algorithm_oid: "2.16.840.1.101.3.4.3.2"
+            serial: "12:34"
+            not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+            not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+    certificates:
+      - issuer: "/CN=valid"
+        subject: "/CN=valid"
+        thumbprint: "a310d679cc379f80045c171f8b5612793c357084"
+        version: 3
+        algorithm: "dsa_with_SHA256"
+        algorithm_oid: "2.16.840.1.101.3.4.3.2"
+        serial: "12:34"
+        not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+        not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+  - subject: "/CN=narrow-y"
+    issuer: "/CN=narrow-y"
+    thumbprint: "6556dda1017fe295e283e03f5f073c85d679c456"
+    version: 3
+    algorithm: "dsa_with_SHA256"
+    algorithm_oid: "2.16.840.1.101.3.4.3.2"
+    serial: "12:34"
+    not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+    not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+    verified: false
+    digest_alg: "sha256"
+    digest: "b4d2338474f386b4ea1e40c325e7efb8f3027c3bd8c4cb883bef06a946660a4f"
+    file_digest: "b4d2338474f386b4ea1e40c325e7efb8f3027c3bd8c4cb883bef06a946660a4f"
+    number_of_certificates: 1
+    number_of_countersignatures: 0
+    signer_info:
+        digest: "4b88b46bfd64db1b1420d2502ff4adc60d3613c88052cde48b10001ee22cf912"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/CN=narrow-y"
+            subject: "/CN=narrow-y"
+            thumbprint: "6556dda1017fe295e283e03f5f073c85d679c456"
+            version: 3
+            algorithm: "dsa_with_SHA256"
+            algorithm_oid: "2.16.840.1.101.3.4.3.2"
+            serial: "12:34"
+            not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+            not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+    certificates:
+      - issuer: "/CN=narrow-y"
+        subject: "/CN=narrow-y"
+        thumbprint: "6556dda1017fe295e283e03f5f073c85d679c456"
+        version: 3
+        algorithm: "dsa_with_SHA256"
+        algorithm_oid: "2.16.840.1.101.3.4.3.2"
+        serial: "12:34"
+        not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+        not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+  - subject: "/CN=wide-y"
+    issuer: "/CN=wide-y"
+    thumbprint: "12ac4aca93b2e2ea42d4b355ec20483ce0fa7089"
+    version: 3
+    algorithm: "dsa_with_SHA256"
+    algorithm_oid: "2.16.840.1.101.3.4.3.2"
+    serial: "12:34"
+    not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+    not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+    verified: false
+    digest_alg: "sha256"
+    digest: "b4d2338474f386b4ea1e40c325e7efb8f3027c3bd8c4cb883bef06a946660a4f"
+    file_digest: "b4d2338474f386b4ea1e40c325e7efb8f3027c3bd8c4cb883bef06a946660a4f"
+    number_of_certificates: 1
+    number_of_countersignatures: 0
+    signer_info:
+        digest: "4b88b46bfd64db1b1420d2502ff4adc60d3613c88052cde48b10001ee22cf912"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/CN=wide-y"
+            subject: "/CN=wide-y"
+            thumbprint: "12ac4aca93b2e2ea42d4b355ec20483ce0fa7089"
+            version: 3
+            algorithm: "dsa_with_SHA256"
+            algorithm_oid: "2.16.840.1.101.3.4.3.2"
+            serial: "12:34"
+            not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+            not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+    certificates:
+      - issuer: "/CN=wide-y"
+        subject: "/CN=wide-y"
+        thumbprint: "12ac4aca93b2e2ea42d4b355ec20483ce0fa7089"
+        version: 3
+        algorithm: "dsa_with_SHA256"
+        algorithm_oid: "2.16.840.1.101.3.4.3.2"
+        serial: "12:34"
+        not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+        not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+  - subject: "/CN=narrow-g"
+    issuer: "/CN=narrow-g"
+    thumbprint: "7e468eab869d5eba6a2e15d584244fba3bc40464"
+    version: 3
+    algorithm: "dsa_with_SHA256"
+    algorithm_oid: "2.16.840.1.101.3.4.3.2"
+    serial: "12:34"
+    not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+    not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+    verified: false
+    digest_alg: "sha256"
+    digest: "b4d2338474f386b4ea1e40c325e7efb8f3027c3bd8c4cb883bef06a946660a4f"
+    file_digest: "b4d2338474f386b4ea1e40c325e7efb8f3027c3bd8c4cb883bef06a946660a4f"
+    number_of_certificates: 1
+    number_of_countersignatures: 0
+    signer_info:
+        digest: "4b88b46bfd64db1b1420d2502ff4adc60d3613c88052cde48b10001ee22cf912"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/CN=narrow-g"
+            subject: "/CN=narrow-g"
+            thumbprint: "7e468eab869d5eba6a2e15d584244fba3bc40464"
+            version: 3
+            algorithm: "dsa_with_SHA256"
+            algorithm_oid: "2.16.840.1.101.3.4.3.2"
+            serial: "12:34"
+            not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+            not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+    certificates:
+      - issuer: "/CN=narrow-g"
+        subject: "/CN=narrow-g"
+        thumbprint: "7e468eab869d5eba6a2e15d584244fba3bc40464"
+        version: 3
+        algorithm: "dsa_with_SHA256"
+        algorithm_oid: "2.16.840.1.101.3.4.3.2"
+        serial: "12:34"
+        not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+        not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+  - subject: "/CN=wide-g"
+    issuer: "/CN=wide-g"
+    thumbprint: "d11e6a263c5a8eaccc50dc3a4eea4a6d4942111c"
+    version: 3
+    algorithm: "dsa_with_SHA256"
+    algorithm_oid: "2.16.840.1.101.3.4.3.2"
+    serial: "12:34"
+    not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+    not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+    verified: false
+    digest_alg: "sha256"
+    digest: "b4d2338474f386b4ea1e40c325e7efb8f3027c3bd8c4cb883bef06a946660a4f"
+    file_digest: "b4d2338474f386b4ea1e40c325e7efb8f3027c3bd8c4cb883bef06a946660a4f"
+    number_of_certificates: 1
+    number_of_countersignatures: 0
+    signer_info:
+        digest: "4b88b46bfd64db1b1420d2502ff4adc60d3613c88052cde48b10001ee22cf912"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/CN=wide-g"
+            subject: "/CN=wide-g"
+            thumbprint: "d11e6a263c5a8eaccc50dc3a4eea4a6d4942111c"
+            version: 3
+            algorithm: "dsa_with_SHA256"
+            algorithm_oid: "2.16.840.1.101.3.4.3.2"
+            serial: "12:34"
+            not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+            not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+    certificates:
+      - issuer: "/CN=wide-g"
+        subject: "/CN=wide-g"
+        thumbprint: "d11e6a263c5a8eaccc50dc3a4eea4a6d4942111c"
+        version: 3
+        algorithm: "dsa_with_SHA256"
+        algorithm_oid: "2.16.840.1.101.3.4.3.2"
+        serial: "12:34"
+        not_before: 1577836800  # 2020-01-01 00:00:00 UTC
+        not_after: 1893456000  # 2030-01-01 00:00:00 UTC
+overlay:
+    offset: 0x0
+    size: 0x0

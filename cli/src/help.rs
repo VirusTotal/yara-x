@@ -1,3 +1,6 @@
+pub const APP_LONG_ABOUT: &str = r#"YARA-X is the pattern matching swiss army knife
+aimed at helping malware researchers identify and classify malware samples."#;
+
 pub const CHECK_LONG_HELP: &str = r#"Check if YARA source files are correct
 
 If <RULES_PATH> is a directory, all files with extensions `.yar` and `.yara` will be checked.
@@ -67,7 +70,7 @@ Examples:
 
 --disable-warnings
 --disable-warnings=slow_pattern
---disable-warnings=slow_rules,redundant_modifier"
+--disable-warnings=slow_rules,redundant_modifier
 --disable-warnings=slow_rules --disable-warnings=redundant_modifier"#;
 
 pub const FILTER_LONG_HELP: &str = r#"Only check files that match the given pattern
@@ -190,6 +193,25 @@ Examples:
 pub const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
 
 The default value is automatically determined based on the number of CPU cores."#;
+
+pub const SCAN_EXCLUDE_LONG_HELP: &str = r#"Exclude a file or directory from scanning
+
+May be specified more than once. Directory paths exclude the entire subtree
+without traversing it. Also applies to single-file targets and `--scan-list`
+entries. Relative paths are resolved against the current working directory, not
+<TARGET_PATH>.
+
+Paths are literal, not glob patterns. Quote shell wildcard characters.
+Symbolic links in parent directories are resolved when matching paths (for
+example, if `link` points to `real`, excluding `link/dir` also excludes
+`real/dir`). The excluded file or directory itself is never opened. On Windows,
+matching is case-insensitive. Exclusions affect scan targets, not rule
+compilation.
+
+Examples:
+
+yr scan --recursive --exclude ./files/private rules.yar ./files
+yr scan --exclude ./files/excluded.bin --exclude ./files/private rules.yar ./files"#;
 
 pub const SCAN_LIST_LONG_HELP: &str = r#"Indicate that TARGET_PATH is a file containing the paths to be scanned
 

@@ -6,16 +6,14 @@ use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::io::Read;
-use std::mem::transmute;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::slice::Iter;
 use std::sync::Once;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
-use bitvec::prelude::*;
+use bitvec::order::Lsb0;
 #[cfg(unix)]
 use memmap2::Advice;
 use memmap2::{Mmap, MmapOptions};
@@ -29,16 +27,14 @@ use crate::models::Rule;
 use crate::modules::{
     ModuleContext, ModuleError, RegisteredModule, module_by_name,
 };
+use crate::scanner::context::PinnedScanContext;
 pub(crate) use crate::scanner::context::RuntimeObject;
 pub(crate) use crate::scanner::context::RuntimeObjectHandle;
 pub(crate) use crate::scanner::context::ScanContext;
 pub(crate) use crate::scanner::context::ScanState;
-use crate::scanner::context::create_wasm_store_and_ctx;
 pub(crate) use crate::scanner::matches::Match;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
-use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::wasm::runtime::Store;
 
 mod context;
 mod matches;
@@ -112,7 +108,7 @@ static INIT_HEARTBEAT: Once = Once::new();
 pub enum ScannedData<'d> {
     Slice(&'d [u8]),
     Vec(Vec<u8>),
-    Mmap { mmap: Mmap, len: usize },
+    Mmap(Mmap),
 }
 
 impl AsRef<[u8]> for ScannedData<'_> {
@@ -120,7 +116,7 @@ impl AsRef<[u8]> for ScannedData<'_> {
         match self {
             ScannedData::Slice(s) => s,
             ScannedData::Vec(v) => v.as_ref(),
-            ScannedData::Mmap { mmap, len } => &mmap.as_ref()[..*len],
+            ScannedData::Mmap(m) => m.as_ref(),
         }
     }
 }
@@ -192,8 +188,7 @@ impl<'a> ScanOptions<'a> {
 /// in-memory data sequentially, but you need multiple scanners for scanning in
 /// parallel.
 pub struct Scanner<'r> {
-    _rules: &'r Rules,
-    wasm_store: Pin<Box<Store<ScanContext<'static, 'static>>>>,
+    ctx: PinnedScanContext<'r>,
     use_mmap: bool,
     max_scan_size: Option<usize>,
 }
@@ -201,8 +196,11 @@ pub struct Scanner<'r> {
 impl<'r> Scanner<'r> {
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
-        let wasm_store = create_wasm_store_and_ctx(rules);
-        Self { _rules: rules, wasm_store, use_mmap: true, max_scan_size: None }
+        Self {
+            ctx: PinnedScanContext::new(rules),
+            use_mmap: true,
+            max_scan_size: None,
+        }
     }
 
     /// Sets a timeout for scan operations.
@@ -214,7 +212,7 @@ impl<'r> Scanner<'r> {
     /// the scanner could potentially continue running for a longer period than
     /// the specified timeout.
     pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
-        self.scan_context_mut().set_timeout(timeout);
+        self.ctx.get_mut().set_timeout(timeout);
         self
     }
 
@@ -223,10 +221,7 @@ impl<'r> Scanner<'r> {
     /// When some pattern reaches the maximum number of patterns it won't
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
-        self.scan_context_mut()
-            .tracker
-            .pattern_matches
-            .max_matches_per_pattern(n);
+        self.ctx.get_mut().tracker.pattern_matches.max_matches_per_pattern(n);
         self
     }
 
@@ -282,7 +277,7 @@ impl<'r> Scanner<'r> {
     /// assert!(matches.next().is_none()); // No other matches are returned
     /// ```
     pub fn fast_scan(&mut self, yes: bool) -> &mut Self {
-        self.scan_context_mut().tracker.fast_scan = yes;
+        self.ctx.get_mut().tracker.fast_scan = yes;
         self
     }
 
@@ -324,11 +319,47 @@ impl<'r> Scanner<'r> {
     /// message being logged. The function can print the message to stdout,
     /// append it to a file, etc. If no callback is set these messages are
     /// ignored.
+    ///
+    /// Any data borrowed by `callback` must outlive the [`Scanner`], because
+    /// the callback is owned by the scanner and dropped when the scanner is
+    /// dropped. Declare borrowed data before the scanner (or drop the scanner
+    /// before moving the borrowed data):
+    ///
+    /// ```compile_fail,E0505
+    /// # use std::io::{BufWriter, Write};
+    /// # use yara_x::{Rules, ScanError, Scanner};
+    /// fn console_output(rules: &Rules, data: &[u8]) -> Result<Vec<u8>, ScanError> {
+    ///     let mut scanner = Scanner::new(rules);
+    ///     let mut log = Vec::new();
+    ///     let mut writer = BufWriter::new(&mut log);
+    ///     scanner.console_log(move |msg| writeln!(writer, "{msg}").unwrap());
+    ///     scanner.scan(data)?;
+    ///     Ok(log)
+    /// }
+    /// ```
+    ///
+    /// Declaring `log` after `scanner` is also rejected even if `drop(scanner)`
+    /// appears on the normal path, because an early `?` return would drop
+    /// `log` before `scanner`:
+    ///
+    /// ```compile_fail,E0597
+    /// # use std::io::{BufWriter, Write};
+    /// # use yara_x::{Rules, ScanError, Scanner};
+    /// fn console_output(rules: &Rules, data: &[u8]) -> Result<Vec<u8>, ScanError> {
+    ///     let mut scanner = Scanner::new(rules);
+    ///     let mut log = Vec::new();
+    ///     let mut writer = BufWriter::new(&mut log);
+    ///     scanner.console_log(move |msg| writeln!(writer, "{msg}").unwrap());
+    ///     scanner.scan(data)?;
+    ///     drop(scanner);
+    ///     Ok(log)
+    /// }
+    /// ```
     pub fn console_log<F>(&mut self, callback: F) -> &mut Self
     where
         F: FnMut(String) + 'r,
     {
-        self.scan_context_mut().console_log = Some(Box::new(callback));
+        self.ctx.get_mut().console_log = Some(Box::new(callback));
         self
     }
 
@@ -339,7 +370,7 @@ impl<'r> Scanner<'r> {
     /// match context size is 0, which means that [`crate::Match::data_with_context`]
     /// will return exactly the same data as [`crate::Match::data`].
     pub fn match_context_size(&mut self, size: usize) -> &mut Self {
-        self.scan_context_mut().match_context_size = size;
+        self.ctx.get_mut().match_context_size = size;
         self
     }
 
@@ -412,7 +443,7 @@ impl<'r> Scanner<'r> {
     where
         VariableError: From<<T as TryInto<Variable>>::Error>,
     {
-        self.scan_context_mut().set_global(ident, value)?;
+        self.ctx.get_mut().set_global(ident, value)?;
         Ok(self)
     }
 
@@ -469,7 +500,8 @@ impl<'r> Scanner<'r> {
             });
         }
 
-        self.scan_context_mut()
+        self.ctx
+            .get_mut()
             .user_provided_module_outputs
             .insert(full_name.to_string(), data);
 
@@ -525,7 +557,7 @@ impl<'r> Scanner<'r> {
     /// for subsequent scans, use [`Scanner::clear_profiling_data`].
     #[cfg(feature = "rules-profiling")]
     pub fn slowest_rules(&self, n: usize) -> Vec<ProfilingData<'_>> {
-        self.scan_context().slowest_rules(n)
+        self.ctx.get().slowest_rules(n)
     }
 
     /// Clears all accumulated profiling data.
@@ -535,30 +567,11 @@ impl<'r> Scanner<'r> {
     /// the results reflect only the data gathered after this method is called.
     #[cfg(feature = "rules-profiling")]
     pub fn clear_profiling_data(&mut self) {
-        self.scan_context_mut().clear_profiling_data()
+        self.ctx.get_mut().clear_profiling_data()
     }
 }
 
 impl<'r> Scanner<'r> {
-    #[cfg(feature = "rules-profiling")]
-    #[inline]
-    fn scan_context<'a>(&self) -> &ScanContext<'r, 'a> {
-        unsafe {
-            transmute::<&ScanContext<'static, 'static>, &ScanContext<'r, '_>>(
-                self.wasm_store.data(),
-            )
-        }
-    }
-    #[inline]
-    fn scan_context_mut<'a>(&mut self) -> &mut ScanContext<'r, 'a> {
-        unsafe {
-            transmute::<
-                &mut ScanContext<'static, 'static>,
-                &mut ScanContext<'r, '_>,
-            >(self.wasm_store.data_mut())
-        }
-    }
-
     fn load_file<'a>(
         &self,
         path: &Path,
@@ -579,15 +592,18 @@ impl<'r> Scanner<'r> {
         // cases.
         let data = if self.use_mmap && size > 32_000_000 {
             let mapped_file = unsafe {
-                MmapOptions::new().map_copy_read_only(&file).map_err(|err| {
-                    ScanError::MapError { path: path.to_path_buf(), err }
-                })
+                MmapOptions::new().len(size).map_copy_read_only(&file).map_err(
+                    |err| ScanError::MapError {
+                        path: path.to_path_buf(),
+                        err,
+                    },
+                )
             }?;
             #[cfg(unix)]
             mapped_file.advise(Advice::Sequential).map_err(|err| {
                 ScanError::MapError { path: path.to_path_buf(), err }
             })?;
-            ScannedData::Mmap { mmap: mapped_file, len: size }
+            ScannedData::Mmap(mapped_file)
         } else {
             let mut buffered_file = Vec::with_capacity(size);
             (&file)
@@ -608,7 +624,7 @@ impl<'r> Scanner<'r> {
         data: ScannedData<'a>,
         options: Option<ScanOptions<'opts>>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        let ctx = self.scan_context_mut();
+        let ctx = self.ctx.get_mut();
 
         // Clear information about matches found in a previous scan, if any.
         ctx.reset();
@@ -973,26 +989,7 @@ pub struct NonMatchingRules<'a, 'r> {
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r, 'a>) -> Self {
-        let num_rules = ctx.compiled_rules.num_rules();
-        let main_memory = ctx
-            .wasm
-            .main_memory
-            .unwrap()
-            .data(unsafe { ctx.wasm.store.as_ref() });
-
-        let base = MATCHING_RULES_BITMAP_BASE as usize;
-
-        // Create a BitSlice that covers the region of main memory containing
-        // the bitmap that tells which rules matched and which did not.
-        let matching_rules_bitmap = BitSlice::<_, Lsb0>::from_slice(
-            &main_memory[base..base + num_rules.div_ceil(8)],
-        );
-
-        // The BitSlice will cover more bits than necessary, for example, if
-        // there are 3 rules the BitSlice will have 8 bits because it is
-        // created from a u8 slice that has 1 byte. Here we make sure that
-        // the BitSlice has exactly as many bits as existing rules.
-        let matching_rules_bitmap = &matching_rules_bitmap[0..num_rules];
+        let matching_rules_bitmap = ctx.wasm.rules_bitmap();
 
         // The number of non-matching private rules is computed from the
         // total number of private rules, because the scanner doesn't track

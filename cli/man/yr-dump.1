@@ -1,0 +1,78 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH YR-DUMP 1 "" YARA-X "User Commands"
+.SH NAME
+yr\-dump \- Show the data produced by YARA modules for a file
+.SH SYNOPSIS
+\fByr dump\fR [\fB\-m\fR|\fB\-\-module\fR] [\fB\-\-no\-colors\fR] [\fB\-o\fR|\fB\-\-output\-format\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIFILE\fR>
+.SH DESCRIPTION
+Show the data produced by YARA modules for a file
+.PP
+YARA modules analyze files and extract information from them. This command shows all
+the data produced by one or more YARA module for the given file. If no module is
+explicitly specified with the `\-\-module` option, any module for which YARA produced
+some information will be shown.
+.PP
+If the file is not provided it will be read from stdin.
+.PP
+Examples:
+.PP
+.nf
+yr dump \-\-module pe SOMEFILE
+yr dump \-\-module pe \-\-module dotnet SOMEFILE
+cat SOMEFILE | yr dump
+.fi
+.SH OPTIONS
+.TP
+\fB\-m\fR, \fB\-\-module\fR
+Module name
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+lnk
+.IP \(bu 2
+macho
+.IP \(bu 2
+elf
+.IP \(bu 2
+pe
+.IP \(bu 2
+dotnet
+.IP \(bu 2
+olecf
+.IP \(bu 2
+vba
+.IP \(bu 2
+crx
+.IP \(bu 2
+dex
+.IP \(bu 2
+zip
+.RE
+.TP
+\fB\-\-no\-colors\fR
+Turn off colors in YAML output
+.TP
+\fB\-o\fR, \fB\-\-output\-format\fR \fI<FORMAT>\fR
+Desired output format
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+json
+.IP \(bu 2
+yaml
+.RE
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+<\fIFILE\fR>
+Path to binary file
+.SH "SEE ALSO"
+\fByr\fR(1)

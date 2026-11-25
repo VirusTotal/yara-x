@@ -50,11 +50,11 @@ pub enum SerializationError {
 
     /// Error occurred while encoding YARA-X rules.
     #[error("cannot encode YARA-X rules")]
-    EncodeError(#[from] bincode::error::EncodeError),
+    EncodeError(#[source] anyhow::Error),
 
     /// Error occurred while decoding YARA-X rules.
     #[error("cannot decode YARA-X rules")]
-    DecodeError(#[from] bincode::error::DecodeError),
+    DecodeError(#[source] anyhow::Error),
 
     /// I/O error while trying to read or write serialized data.
     #[error(transparent)]
@@ -109,6 +109,7 @@ pub enum CompileError {
     PotentiallySlowLoop(Box<PotentiallySlowLoop>),
     SlowPattern(Box<SlowPattern>),
     SyntaxError(Box<SyntaxError>),
+    TooManyAtoms(Box<TooManyAtoms>),
     TooManyPatterns(Box<TooManyPatterns>),
     TooManyVariables(Box<TooManyVariables>),
     UnexpectedEscapeSequence(Box<UnexpectedEscapeSequence>),
@@ -971,6 +972,20 @@ pub struct TooManyVariables {
 #[label("the condition of this rule is too large", error_loc)]
 pub struct ConditionTooLarge {
     report: Report,
+    error_loc: CodeLoc,
+}
+
+/// The patterns in the rules produce too many atoms.
+#[derive(ErrorStruct, Clone, Debug, PartialEq, Eq)]
+#[associated_enum(CompileError)]
+#[error(code = "E049", title = "too many atoms")]
+#[label(
+    "the patterns in this rule raise the total number of atoms above {max_num_atoms}",
+    error_loc
+)]
+pub struct TooManyAtoms {
+    report: Report,
+    max_num_atoms: usize,
     error_loc: CodeLoc,
 }
 

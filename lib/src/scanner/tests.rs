@@ -1053,6 +1053,33 @@ fn max_scan_size() {
             .len(),
         0
     );
+
+    // Exercise the >32MB mmap path in `Scanner::load_file` using a sparse
+    // 40MB file with "aaaa" placed at offset 35MB.
+    struct TempFile(std::path::PathBuf);
+    impl Drop for TempFile {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+        }
+    }
+
+    let temp = TempFile(
+        std::env::temp_dir()
+            .join(format!("yara_x_max_scan_size_{}.bin", std::process::id())),
+    );
+    {
+        use std::io::{Seek, SeekFrom, Write};
+        let mut f = std::fs::File::create(&temp.0).unwrap();
+        f.set_len(40_000_000).unwrap();
+        f.seek(SeekFrom::Start(35_000_000)).unwrap();
+        f.write_all(b"aaaa").unwrap();
+    }
+
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan_file(&temp.0).unwrap().matching_rules().len(), 1);
+
+    scanner.max_scan_size(33_000_000);
+    assert_eq!(scanner.scan_file(&temp.0).unwrap().matching_rules().len(), 0);
 }
 
 #[cfg(feature = "test_proto2-module")]
@@ -2063,6 +2090,62 @@ fn chained_patterns_distance_precheck() {
     block_scanner.scan(1_000_000, &data).unwrap();
     let block_results = block_scanner.finish().unwrap();
     assert_eq!(block_results.matching_rules().len(), 1);
+}
+
+#[test]
+fn console_log_borrowed_bufwriter() {
+    use std::io::{BufWriter, Write};
+
+    fn assert_unpin<T: Unpin>() {}
+    fn assert_covariant<'a>(s: Scanner<'static>) -> Scanner<'a> {
+        s
+    }
+    fn assert_blocks_covariant<'a>(
+        s: crate::blocks::Scanner<'static>,
+    ) -> crate::blocks::Scanner<'a> {
+        s
+    }
+
+    assert_unpin::<Scanner<'_>>();
+    assert_unpin::<crate::blocks::Scanner<'_>>();
+    let _ = (assert_covariant, assert_blocks_covariant);
+
+    let rules = crate::compile(
+        r#"
+        import "console"
+        rule test {
+            condition:
+                console.log("hello from the rule")
+        }
+        "#,
+    )
+    .unwrap();
+
+    // Valid drop order: `log` is declared before `scanner`, so `scanner`
+    // (and the `BufWriter` inside its `console_log` callback) drops and
+    // flushes into `log` before `log` is read or dropped.
+    let mut log = b"console output:\n".to_vec();
+    {
+        let mut scanner = Scanner::new(&rules);
+        let mut writer = BufWriter::new(&mut log);
+        scanner.console_log(move |msg| {
+            writeln!(writer, "{msg}").unwrap();
+        });
+        scanner.scan(b"some data").unwrap();
+    }
+    assert_eq!(log, b"console output:\nhello from the rule\n");
+
+    let mut block_log = b"console output:\n".to_vec();
+    {
+        let mut scanner = crate::blocks::Scanner::new(&rules);
+        let mut writer = BufWriter::new(&mut block_log);
+        scanner.console_log(move |msg| {
+            writeln!(writer, "{msg}").unwrap();
+        });
+        scanner.scan(0, b"some data").unwrap();
+        scanner.finish().unwrap();
+    }
+    assert_eq!(block_log, b"console output:\nhello from the rule\n");
 }
 
 fn hex_rule_matches(rule: &str, data: &[u8]) -> bool {

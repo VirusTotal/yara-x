@@ -264,3 +264,193 @@ fn same_named_modules_do_not_cross_attach_functions() {
         "expected exactly one `dup` registration's function to be attached"
     );
 }
+
+mod aliased {
+    use protobuf::well_known_types::api::Api;
+    use protobuf::well_known_types::source_context::SourceContext;
+    use yara_x::mods::prelude::*;
+
+    register_module!("aliased", Api, main);
+
+    fn main(_: &mut ModuleContext, _: &[u8]) -> Result<Api, ModuleError> {
+        let mut api = Api::new();
+        let mut sc = SourceContext::new();
+        sc.file_name = "test.proto".to_string();
+        api.source_context = protobuf::MessageField::some(sc);
+        Ok(api)
+    }
+
+    /// Checks whether the given method name equals `"init"`.
+    #[module_export(name = "contains_method", alias = "has_method")]
+    fn contains_method_impl(
+        ctx: &ScanContext,
+        value: RuntimeString,
+    ) -> Option<bool> {
+        Some(value.to_str(ctx).ok()? == "init")
+    }
+
+    /// Uses default Rust function name with a single alias.
+    #[module_export(alias = "inc")]
+    fn increment(_ctx: &ScanContext, a: i64) -> i64 {
+        a + 1
+    }
+
+    /// Overloaded function (i64) with an alias.
+    #[module_export(name = "add", alias = "sum")]
+    fn add_i64(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
+        a + b
+    }
+
+    /// Overloaded function (f64) with an alias.
+    #[module_export(name = "add", alias = "sum")]
+    fn add_f64(_ctx: &ScanContext, a: f64, b: f64) -> f64 {
+        a + b
+    }
+
+    /// Nested function with a nested alias.
+    #[module_export(name = "sub.answer", alias = "sub.get_answer")]
+    fn nested_answer(_ctx: &ScanContext) -> i64 {
+        42
+    }
+
+    /// Method on a protobuf substructure with an alias.
+    #[module_export(
+        name = "is_present",
+        alias = "exists",
+        method_of = "google.protobuf.SourceContext"
+    )]
+    fn source_context_is_present(_ctx: &ScanContext, _obj: i64) -> bool {
+        true
+    }
+}
+
+mod orphaned_alias {
+    use yara_x::mods::prelude::*;
+
+    #[module_export(name = "orphan_primary", alias = "orphan_alias")]
+    fn orphan_fn(_ctx: &ScanContext) -> bool {
+        true
+    }
+}
+
+#[test]
+fn module_export_alias_calls() {
+    // Primary name and alias both work, including within the same rule.
+    assert_matches(
+        r#"
+        import "aliased"
+        rule test {
+            condition:
+                aliased.contains_method("init") and
+                aliased.has_method("init") and
+                not aliased.contains_method("other") and
+                not aliased.has_method("other")
+        }
+        "#,
+    );
+
+    // Calling only the alias (never the primary name) also links and executes.
+    assert_matches(
+        r#"
+        import "aliased"
+        rule test {
+            condition: aliased.has_method("init")
+        }
+        "#,
+    );
+
+    // Default Rust function name with an alias.
+    assert_matches(
+        r#"
+        import "aliased"
+        rule test {
+            condition: aliased.increment(1) == 2 and aliased.inc(1) == 2
+        }
+        "#,
+    );
+
+    // Overloaded functions with alias.
+    assert_matches(
+        r#"
+        import "aliased"
+        rule test {
+            condition:
+                aliased.add(1, 2) == 3 and
+                aliased.add(1.5, 2.5) == 4.0 and
+                aliased.sum(1, 2) == 3 and
+                aliased.sum(1.5, 2.5) == 4.0
+        }
+        "#,
+    );
+
+    // Nested paths in name and alias.
+    assert_matches(
+        r#"
+        import "aliased"
+        rule test {
+            condition:
+                aliased.sub.answer() == 42 and
+                aliased.sub.get_answer() == 42
+        }
+        "#,
+    );
+
+    // Method alias on a protobuf substructure.
+    assert_matches(
+        r#"
+        import "aliased"
+        rule test {
+            condition:
+                aliased.source_context.is_present() and
+                aliased.source_context.exists()
+        }
+        "#,
+    );
+}
+
+#[test]
+fn module_export_alias_reflection() {
+    use yara_x::mods::reflect::Type;
+
+    let module = yara_x::mods::module_definition("aliased").unwrap();
+
+    let find_func = |name: &str| {
+        module
+            .fields()
+            .find(|f| f.name() == name)
+            .and_then(|f| match f.ty() {
+                Type::Func(func) => Some(func),
+                _ => None,
+            })
+            .unwrap()
+    };
+
+    let primary = find_func("contains_method");
+    let alias = find_func("has_method");
+    assert_eq!(primary, alias);
+    assert_eq!(
+        alias.signatures[0].doc(),
+        Some(" Checks whether the given method name equals `\"init\"`.")
+    );
+
+    let add = find_func("add");
+    let sum = find_func("sum");
+    assert_eq!(add, sum);
+    assert_eq!(sum.signatures.len(), 2);
+}
+
+#[test]
+fn orphaned_alias_is_not_global() {
+    assert_compile_error(
+        r#"rule test { condition: orphan_primary() }"#,
+        "unknown identifier `orphan_primary`",
+    );
+    assert_compile_error(
+        r#"rule test { condition: orphan_alias() }"#,
+        "unknown identifier `orphan_alias`",
+    );
+    assert_compile_error(
+        r#"import "aliased" rule test { condition: has_method("init") }"#,
+        "unknown identifier `has_method`",
+    );
+}

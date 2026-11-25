@@ -704,14 +704,16 @@ Scans a memory buffer.
 ```c
 enum YRX_RESULT yrx_scanner_scan_block(
     struct YRX_SCANNER *scanner,
+    size_t base,
     const uint8_t *data,
-    size_t len,
-    uint64_t block_offset);
+    size_t len);
 ```
 
 This function is designed for scenarios where the data to be scanned is not
 available as a single contiguous block of memory, but rather arrives in
-smaller, discrete blocks, allowing for incremental scanning. 
+smaller, discrete blocks, allowing for incremental scanning. The `base`
+argument is the offset at which the block starts within the overall data
+being scanned. 
 
 See: [Block scanning mode](#block-scanning-mode)
 

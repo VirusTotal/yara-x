@@ -173,6 +173,41 @@ rule test_2 {
 }
 
 #[test]
+fn nested_exprs_backtracking() {
+    // In each of these shapes `X` used to be parsed multiple times due to
+    // backtracking after failing to match the token following `f(X)`. Nesting
+    // the expression inside itself caused exponential parse time in the
+    // nesting depth.
+    let exprs = [
+        // `of_expr` parses `f(X)` twice in `quantifier` (`TERM %` and
+        // `EXPR !%`) before failing to find `of`, and then `boolean_term`
+        // parses it a third time as `EXPR`.
+        "f(X)",
+        // `quantifier` parses `f(X)` as `TERM %` and then as `EXPR`.
+        "for f(X) of them : (true)",
+        // `iterable` parses `f(X)` as `RANGE` and then as `EXPR_TUPLE`.
+        "for any i in (f(X), 1) : (true)",
+    ];
+
+    for expr in exprs {
+        let mut condition = "1".to_string();
+        for _ in 0..30 {
+            condition = expr.replace('X', &condition);
+        }
+
+        let source = format!("rule test {{ condition: {condition} }}");
+        let mut parser = Parser::new(source.as_bytes());
+        // Without caching the failed alternatives each shape requires > 2^30
+        // units of fuel; with the cache it needs fewer than 10,000.
+        parser.parser.fuel = 100_000;
+
+        let ast = AST::from(parser);
+        assert!(ast.errors().is_empty(), "{:?}", ast.errors());
+        assert_eq!(ast.rules().count(), 1);
+    }
+}
+
+#[test]
 fn nesting_error() {
     let source = format!(
         "rule test_1 {{ condition: {}true{} }}\nrule test_2 {{ condition: true }}",
@@ -203,7 +238,29 @@ fn nesting_error() {
         ast.errors(),
         &[Error::SyntaxError {
             message: "nesting limit reached".to_string(),
-            span: Span(27..96032),
+            span: Span(27..99632),
+        }]
+    );
+    assert_eq!(ast.rules().count(), 1);
+
+    // A chain of `BinaryExpr` operators with exactly `MAX_AST_DEPTH` levels
+    // is accepted, while one more level hits the limit.
+    let source =
+        format!("rule test_1 {{ condition: {} }}", vec!["1"; 100].join(" | "));
+    let ast = AST::from(source.as_str());
+    assert!(ast.errors().is_empty());
+    assert_eq!(ast.rules().count(), 1);
+
+    let source = format!(
+        "rule test_1 {{ condition: {} }}\nrule test_2 {{ condition: true }}",
+        vec!["1"; 101].join(" | ")
+    );
+    let ast = AST::from(source.as_str());
+    assert_eq!(
+        ast.errors(),
+        &[Error::SyntaxError {
+            message: "nesting limit reached".to_string(),
+            span: Span(25..26),
         }]
     );
     assert_eq!(ast.rules().count(), 1);
@@ -219,13 +276,13 @@ fn nesting_error() {
         ast.errors(),
         &[Error::SyntaxError {
             message: "nesting limit reached".to_string(),
-            span: Span(25..4030),
+            span: Span(25..7630),
         }]
     );
     assert_eq!(ast.rules().count(), 1);
 
     // Parenthesized sub-chains accumulate their AST depth across parentheses.
-    let chunk = vec!["1"; 400].join(" | ");
+    let chunk = vec!["1"; 40].join(" | ");
     let source = format!(
         "rule test_1 {{ condition: (({chunk}) | {chunk}) | {chunk} == 0 }}\nrule test_2 {{ condition: true }}",
     );

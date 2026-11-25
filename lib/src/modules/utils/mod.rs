@@ -7,7 +7,7 @@ pub mod authenticode;
 #[cfg(feature = "crypto")]
 pub mod crypto;
 
-#[cfg(feature = "crypto")]
+#[cfg(any(feature = "dex-module", feature = "macho-module"))]
 pub mod leb128;
 #[cfg(any(
     feature = "olecf-module",

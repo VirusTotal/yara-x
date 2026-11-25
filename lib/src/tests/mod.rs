@@ -1750,6 +1750,32 @@ fn hex_patterns() {
             0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12,
         ]
     );
+
+    // Alternations after jumps must preserve non-greedy jump priority and
+    // ordered alternation regardless of alternative lengths or order.
+    pattern_match!(
+        r#"{ 66 6F 6F [0-2] ( 61 62 | 58 61 ) }"#,
+        b"fooXab",
+        b"fooXa"
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] ( 68 ?? ?? ?? ?? | 6A ?? ) }"#,
+        &[0x01, 0x02, 0x68, 0x6A, 0x00, 0x00, 0x00],
+        &[0x01, 0x02, 0x68, 0x6A, 0x00, 0x00, 0x00]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-1] ( 03 04 | 03 ) }"#,
+        &[0x01, 0x02, 0x03, 0x03, 0x04],
+        &[0x01, 0x02, 0x03]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 03 [0-2] ( 1? | 3? ) }"#,
+        &[0x01, 0x02, 0x03, 0x30, 0x10],
+        &[0x01, 0x02, 0x03, 0x30]
+    );
 }
 
 #[test]
@@ -2323,6 +2349,116 @@ fn regexp_patterns_6() {
         }"#,
         b"abbbcccc"
     );
+
+    // Fixed-length non-newline jumps running backwards (`JumpExactNoNewline`).
+    pattern_false!(r"/aa.{2}bbbb/", b"XXXXaa\n\nbbbb");
+    pattern_match!(r"/aa.{2}bbbb/", b"\n\nXXaaXYbbbb", b"aaXYbbbb");
+    pattern_false!(r"/aa.{2}cc.{2}dddd/", b"XXXXaa\n\nccXYdddd");
+    pattern_match!(
+        r"/aa.{2}cc.{2}dddd/",
+        b"\n\nXXaaZWccXYdddd",
+        b"aaZWccXYdddd"
+    );
+
+    // Non-newline variable jumps followed/preceded by a literal `\n` must not
+    // cross the first `\n` to match a subsequent `\n`.
+    pattern_false!(r"/abc.{0,4}\nX/", b"abc\n\nX");
+    pattern_false!(r"/abc.{1,4}\nX/", b"abcy\n\nX");
+    pattern_match!(r"/abc.{0,4}\n/", b"abc\n\n", b"abc\n");
+    pattern_match!(r"/abc.{0,4}\nX/", b"abcxy\nX", b"abcxy\nX");
+
+    pattern_false!(r"/X\n.{0,4}abc/", b"X\n\nabc");
+    pattern_false!(r"/X\n.{1,4}abc/", b"X\n\nyabc");
+    pattern_match!(r"/X\n.{0,4}abc/", b"X\nxyabc", b"X\nxyabc");
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /\n.{0,4}abc/
+            condition:
+                #a == 1 and
+                @a[1] == 1 and !a[1] == 4
+        }"#,
+        b"\n\nabc"
+    );
+
+    // Trailing jumps reaching end of input or exhausted input.
+    pattern_match!(r"/abc.{0,4}/s", b"abcx", b"abcx");
+    pattern_match!(r"/abc.{0,4}/s", b"abc", b"abc");
+    pattern_false!(r"/abc.{1,4}/s", b"abc");
+    pattern_match!(r"/abc.{0,4}?/s", b"abcx", b"abc");
+
+    // Leading jumps reaching start of input or exhausted input at offset 0.
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /.{0,2}aba/s
+            condition:
+                #a == 2 and
+                @a[1] == 0 and !a[1] == 4 and
+                @a[2] == 1 and !a[2] == 3
+        }"#,
+        b"9aba"
+    );
+    pattern_match!(r"/.{0,1}(CAc|B1)/s", b"B1cc9", b"B1");
+    pattern_false!(r"/.{1,2}(CAc|B1)/s", b"B1cc9");
+
+    // Edge jumps that disallow newlines.
+    pattern_match!(r"/abc.{0,4}/", b"abc\n", b"abc");
+    pattern_match!(r"/abc.{0,4}/", b"abcx\ny", b"abcx");
+    pattern_false!(r"/abc.{2,4}/", b"abcx\nyz");
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /.{0,4}abc/
+            condition:
+                #a == 1 and
+                @a[1] == 1 and !a[1] == 3
+        }"#,
+        b"\nabc"
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /.{0,4}abc/
+            condition:
+                #a == 2 and
+                @a[1] == 2 and !a[1] == 4 and
+                @a[2] == 3 and !a[2] == 3
+        }"#,
+        b"y\nxabc"
+    );
+
+    pattern_false!(r"/.{2,4}abc/", b"zy\nxabc");
+
+    // Ordered alternation with alternatives of different lengths (issue #903).
+    pattern_match!(
+        r"/\x63\x63.{2,2}(\x43\x31|\x00\x42|\x43)/",
+        b"\x63\x63\x00\x00\x43\x31",
+        b"\x63\x63\x00\x00\x43\x31"
+    );
+    pattern_match!(
+        r"/\x39\x62\xff.{3,4}\x7f\x30(\x62|\x80|\x80\x63)/",
+        b"\x39\x62\xff\x00\x00\x00\x7f\x30\x80\x63",
+        b"\x39\x62\xff\x00\x00\x00\x7f\x30\x80"
+    );
+    pattern_match!(r"/foo(a|ab).{0,1}x/", b"fooabxx", b"fooabx");
+    pattern_match!(r"/foo(ab|a).{0,1}x/", b"fooabxx", b"fooabxx");
+    pattern_match!(r"/foo(ab|a)(c|bcx)/", b"fooabcx", b"fooabc");
+    pattern_match!(r"/foo(a|ab)(bcx|c)/", b"fooabcx", b"fooabcx");
+    pattern_match!(r"/foo.{0,2}(ab|)/", b"fooXab", b"fooXa");
+
+    // Same-length alternations after greedy and non-greedy jumps.
+    pattern_match!(r"/foo.{0,2}(ab|Xa)/", b"fooXab", b"fooXab");
+    pattern_match!(r"/foo.{0,2}(Xa|ab)/", b"fooXab", b"fooXab");
+    pattern_match!(r"/foo.{0,2}?(ab|Xa)/", b"fooXab", b"fooXa");
+    pattern_match!(r"/foo.{0,2}?(Xa|ab)/", b"fooXab", b"fooXa");
+
+    // Greedy non-newline jumps must still stop before the first newline.
+    pattern_match!(r"/foo.{0,5}a/", b"fooabca\na", b"fooabca");
+    pattern_match!(r"/foo.{0,5}\n/", b"foox\ny\n", b"foox\n");
 }
 
 #[test]
@@ -2625,6 +2761,55 @@ fn regexp_wide() {
     pattern_true!(
         r"/bar.{2,10}foo/ wide",
         b"\xFF\xFFb\x00a\x00r\x00x\x00x\x00f\x00o\x00o\x00\xFF\xFF"
+    );
+
+    pattern_false!(r"/aa.{2}bbbb/ wide", b"X\0X\0a\0a\0\n\0\n\0b\0b\0b\0b\0");
+    pattern_match!(
+        r"/aa.{2}bbbb/ wide",
+        b"\n\0\n\0a\0a\0X\0Y\0b\0b\0b\0b\0",
+        b"a\0a\0X\0Y\0b\0b\0b\0b\0"
+    );
+    pattern_false!(r"/abc.{0,4}\nX/ wide", b"a\0b\0c\0\n\0\n\0X\0");
+    pattern_false!(r"/X\n.{0,4}abc/ wide", b"X\0\n\0\n\0a\0b\0c\0");
+
+    // Edge jumps in wide mode, including trailing/leading odd bytes.
+    pattern_match!(
+        r"/abc.{0,4}/s wide",
+        b"a\x00b\x00c\x00x\x00\xaa",
+        b"a\x00b\x00c\x00x\x00"
+    );
+    pattern_match!(
+        r"/abc.{0,4}/s wide",
+        b"a\x00b\x00c\x00",
+        b"a\x00b\x00c\x00"
+    );
+    pattern_match!(
+        r"/.{0,2}aba/s wide",
+        b"\xaa9\x00a\x00b\x00a\x00",
+        b"9\x00a\x00b\x00a\x00"
+    );
+    pattern_match!(
+        r"/.{0,1}(CAc|B1)/s wide",
+        b"B\x001\x00c\x00",
+        b"B\x001\x00"
+    );
+
+    // Jumps landing on the zero padding of a wide character. The byte that
+    // follows the jump also occurs at odd offsets inside the jump window,
+    // where it is padding and not the start of a character, so a jump that
+    // stops there matches the rest of the pattern one byte off.
+    pattern_match!(
+        r"/009.*\x00/ wide",
+        b"0\x000\x009\x00\x00\x00\xff\x00\x00\x00\x00",
+        b"0\x000\x009\x00\x00\x00\xff\x00\x00\x00"
+    );
+    pattern_false!(
+        r"/\x00b\x0a.*?\x00/s wide",
+        b"\x00\x00b\x00\n\x00b\x00\x00"
+    );
+    pattern_false!(
+        r"/.{2,4}Cb0.{1,}\x00/s wide",
+        b"\x00\x000\x00C\x00b\x000\x00b\x00A\x00\x00"
     );
 }
 

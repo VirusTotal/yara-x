@@ -8,13 +8,14 @@ use std::{io, thread};
 
 use anyhow::{Context, bail};
 use crossbeam::channel::{RecvTimeoutError, SendError, Sender};
-use crossterm::tty::IsTty;
-use globwalk::FileType;
-use indicatif::{ProgressBar, ProgressStyle};
+use ignore::overrides::OverrideBuilder;
+use walkdir::WalkDir;
 
-pub trait Draw {
-    fn draw(&self, width: usize) -> String;
-}
+use crate::console::{Console, Draw};
+
+mod exclusions;
+pub use exclusions::Exclusions;
+use exclusions::ParentCache;
 
 /// Walks the files in a directory or a text file containing file paths,
 /// running a given function for each file.
@@ -43,6 +44,8 @@ pub struct Walker<'a> {
     /// A list of filters applied to the files being walked, those that don't
     /// match at least one of the filters are ignored.
     filters: Vec<String>,
+    /// Literal paths to skip, together with their descendants.
+    exclusions: Exclusions,
     /// When walking a directory, the maximum recursion depth. `None` means
     /// no limit.
     max_depth: Option<usize>,
@@ -59,6 +62,7 @@ impl<'a> Walker<'a> {
         Self {
             path,
             filters: Vec::new(),
+            exclusions: Exclusions::default(),
             file_list: false,
             max_depth: None,
             metadata_filter: None,
@@ -73,6 +77,7 @@ impl<'a> Walker<'a> {
         Self {
             path,
             filters: Vec::new(),
+            exclusions: Exclusions::default(),
             file_list: true,
             max_depth: None,
             metadata_filter: None,
@@ -106,6 +111,13 @@ impl<'a> Walker<'a> {
     ///
     pub fn filter(&mut self, filter: &str) -> &mut Self {
         self.filters.push(filter.to_string());
+        self
+    }
+
+    /// Sets the literal paths excluded from the walk, together with their
+    /// descendants.
+    pub fn exclusions(&mut self, exclusions: Exclusions) -> &mut Self {
+        self.exclusions = exclusions;
         self
     }
 
@@ -144,6 +156,10 @@ impl<'a> Walker<'a> {
     {
         if self.file_list && self.path == Path::new("-") {
             return self.walk_file_list(f, e);
+        }
+
+        if !self.file_list && self.exclusions.contains(self.path) {
+            return Ok(());
         }
 
         let metadata =
@@ -199,8 +215,12 @@ impl<'a> Walker<'a> {
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
         I: Iterator<Item = io::Result<String>>,
     {
+        let mut parents = ParentCache::default();
         for line in lines {
             let path = PathBuf::from(line?);
+            if self.exclusions.contains_cached(&path, &mut parents) {
+                continue;
+            }
             let metadata = match path
                 .metadata()
                 .with_context(|| format!("can't open `{}`", path.display()))
@@ -226,39 +246,64 @@ impl<'a> Walker<'a> {
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
-        // Strip the ./ prefix (.\ in Windows), if present. Except for ".",
-        // "./" and ".\". This is a workaround for a bug in globwalk that
-        // causes a panic.
-        // https://github.com/VirusTotal/yara-x/issues/280
-        // https://github.com/Gilnaa/globwalk/issues/28
-        let path = if self.path.as_os_str().len() > 2 {
-            self.path
-                .strip_prefix(if cfg!(target_os = "windows") {
-                    r#".\"#
-                } else {
-                    "./"
-                })
-                .unwrap_or(self.path)
-        } else {
-            self.path
-        };
-
-        let mut builder = if self.filters.is_empty() {
-            globwalk::GlobWalkerBuilder::from_patterns(path, &["**"])
-        } else {
-            globwalk::GlobWalkerBuilder::from_patterns(
-                path,
-                self.filters.iter().as_ref(),
-            )
-        };
-
-        builder = builder.file_type(FileType::FILE);
-
-        if let Some(max_depth) = self.max_depth {
-            builder = builder.max_depth(max_depth + 1);
+        // Precompute exclusions relative to the walk root once so each entry
+        // can be checked without allocating. If the root itself (or any of its
+        // ancestors, including via symlinks) is excluded, skip the walk
+        // altogether.
+        let scope = self.exclusions.scope(self.path);
+        if scope.root_excluded() {
+            return Ok(());
         }
 
-        for entry in builder.build()? {
+        // Compile glob filters (if any) using `ignore`'s override matcher.
+        // Patterns are matched against root-relative paths (already stripped
+        // of `self.path`), so the override root is empty. When no filters are
+        // configured (e.g., `yr scan`), skip glob matching entirely.
+        let patterns = if self.filters.is_empty() {
+            None
+        } else {
+            let mut builder = OverrideBuilder::new("");
+            for filter in &self.filters {
+                // In `ignore`, a bare `*` matches inside subdirectories too;
+                // anchor it as `/*` so it only matches top-level entries,
+                // preserving `globwalk`'s behavior.
+                builder.add(if filter == "*" { "/*" } else { filter })?;
+            }
+            Some(builder.build()?)
+        };
+
+        // Configure `WalkDir`. `self.max_depth` counts subdirectory levels
+        // below the root (`0` means direct files only), whereas `WalkDir`
+        // counts the root itself as depth `0`, hence `max_depth + 1`.
+        let mut walker = WalkDir::new(self.path);
+        if let Some(max_depth) = self.max_depth {
+            walker = walker.max_depth(max_depth + 1);
+        }
+
+        // Filter entries before `WalkDir` descends into directories so
+        // excluded or ignored subtrees are pruned without being opened.
+        let entries = walker.into_iter().filter_entry(|entry| {
+            let relative = entry.path().strip_prefix(self.path).unwrap();
+
+            // Skip any explicitly excluded file or directory subtree.
+            if scope.excludes(relative) {
+                return false;
+            }
+
+            // Always enter the root directory (empty relative path) and pass
+            // non-directory entries through to the loop below.
+            if relative.as_os_str().is_empty() || !entry.file_type().is_dir() {
+                return true;
+            }
+
+            // Prune directories explicitly ignored by a negated `!` glob
+            // filter.
+            patterns
+                .as_ref()
+                .is_none_or(|p| !p.matched(relative, true).is_ignore())
+        });
+
+        for entry in entries {
             let entry = match entry {
                 Ok(e) => e,
                 Err(err) => {
@@ -270,15 +315,62 @@ impl<'a> Walker<'a> {
                 }
             };
 
-            match entry.metadata() {
-                Ok(metadata) => {
-                    if self.pass_metadata_filter(metadata)
-                        && let Err(err) = f(entry.path())
+            let file_type = entry.file_type();
+            let is_symlink = file_type.is_symlink();
+
+            // Only process regular files and symlinks (symlink targets are
+            // checked below so only links to regular files are followed).
+            if !file_type.is_file() && !is_symlink {
+                continue;
+            }
+
+            // When glob filters are active, only keep entries matching at least
+            // one positive (whitelist) pattern. Checking this before resolving
+            // symlinks avoids extra `stat` calls on non-matching links.
+            if let Some(patterns) = &patterns
+                && !patterns
+                    .matched(
+                        entry.path().strip_prefix(self.path).unwrap(),
+                        false,
+                    )
+                    .is_whitelist()
+            {
+                continue;
+            }
+
+            let metadata = if is_symlink {
+                match entry.path().metadata() {
+                    Ok(metadata) if metadata.is_file() => metadata,
+                    // Skip symlinks pointing to directories or special files
+                    // (FIFOs, sockets, devices).
+                    Ok(_) => continue,
+                    // Report permission errors, but skip dangling, cyclic, or
+                    // otherwise unresolvable symlinks silently.
+                    Err(err)
+                        if err.kind() == io::ErrorKind::PermissionDenied =>
                     {
-                        e(err)?
+                        e(anyhow::Error::new(err).context(format!(
+                            "can't open `{}`",
+                            entry.path().display()
+                        )))?;
+                        continue;
+                    }
+                    Err(_) => continue,
+                }
+            } else {
+                match entry.metadata() {
+                    Ok(metadata) => metadata,
+                    Err(err) => {
+                        e(err.into())?;
+                        continue;
                     }
                 }
-                Err(err) => e(err.into())?,
+            };
+
+            if self.pass_metadata_filter(metadata)
+                && let Err(err) = f(entry.path())
+            {
+                e(err)?;
             }
         }
 
@@ -410,6 +502,14 @@ impl<'a> ParWalker<'a> {
     /// subdirectories are traversed without depth limits.
     pub fn max_depth(&mut self, n: usize) -> &mut Self {
         self.walker.max_depth(n);
+        self
+    }
+
+    /// Sets the literal paths excluded from the walk.
+    ///
+    /// See [`Walker::exclusions`] for details.
+    pub fn exclusions(&mut self, exclusions: Exclusions) -> &mut Self {
+        self.walker.exclusions(exclusions);
         self
     }
 
@@ -563,12 +663,7 @@ impl<'a> ParWalker<'a> {
 
             let render_period = Duration::from_secs_f64(0.150);
 
-            output_messages(
-                render_period,
-                Instant::now(),
-                msg_recv,
-                state.clone(),
-            );
+            output_messages(render_period, msg_recv, state.clone());
 
             threads.into_iter().for_each(|thread| thread.join().unwrap());
 
@@ -578,12 +673,7 @@ impl<'a> ParWalker<'a> {
             let handle = {
                 let state = state.clone();
                 thread::spawn(move || {
-                    output_messages(
-                        render_period,
-                        Instant::now(),
-                        msg_recv,
-                        state.clone(),
-                    );
+                    output_messages(render_period, msg_recv, state.clone());
                 })
             };
 
@@ -604,68 +694,41 @@ impl<'a> ParWalker<'a> {
 
 fn output_messages<S>(
     render_period: Duration,
-    last_render: Instant,
     msg_recv: crossbeam::channel::Receiver<Message>,
     state: Arc<S>,
 ) where
     S: Draw,
 {
-    let mut last_render = last_render;
-
-    // `pb` will be `None` if the `stderr-logs` feature is enabled or if
-    // either stdout or stderr is not a tty (for example when any of them
-    // are redirected to a file).
-    let pb = if cfg!(feature = "stderr-logs") {
-        None
-    } else if io::stdout().is_tty() && io::stderr().is_tty() {
-        let pb = ProgressBar::new_spinner();
-        pb.set_style(
-            ProgressStyle::default_spinner().template("{msg}").unwrap(),
-        );
-        Some(pb)
-    } else {
-        None
+    let Some(mut console) = Console::new() else {
+        for msg in msg_recv {
+            match msg {
+                Message::Info(s) => println!("{s}"),
+                Message::Error(s) => eprintln!("{s}"),
+                Message::Abort => break,
+            }
+        }
+        return;
     };
 
+    let mut last_render = Instant::now();
+
     loop {
-        match msg_recv.recv_timeout(render_period) {
-            Ok(Message::Info(s)) => {
-                if let Some(pb) = &pb {
-                    pb.suspend(|| println!("{s}"));
-                } else {
-                    println!("{s}")
-                }
-            }
-            Ok(Message::Error(s)) => {
-                if let Some(pb) = &pb {
-                    pb.suspend(|| eprintln!("{s}"));
-                } else {
-                    eprintln!("{s}")
-                }
-            }
-            Ok(Message::Abort) => {
-                break;
-            }
-            Err(RecvTimeoutError::Disconnected) => {
-                break;
-            }
+        let remaining = render_period.saturating_sub(last_render.elapsed());
+
+        match msg_recv.recv_timeout(remaining) {
+            Ok(Message::Info(s)) => console.emit_stdout(s),
+            Ok(Message::Error(s)) => console.emit_stderr(s),
+            Ok(Message::Abort) | Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => {}
         }
 
-        if let Some(pb) = &pb
-            && Instant::elapsed(&last_render) > render_period
-        {
-            let width = crossterm::terminal::size()
-                .map(|(w, _)| w as usize)
-                .unwrap_or(80);
-            pb.set_message(state.draw(width));
+        if last_render.elapsed() >= render_period {
+            console.draw(state.as_ref());
             last_render = Instant::now();
         }
     }
 
-    if let Some(pb) = pb {
-        pb.finish_and_clear();
-    }
+    console.finish();
 }
 
 pub enum Message {

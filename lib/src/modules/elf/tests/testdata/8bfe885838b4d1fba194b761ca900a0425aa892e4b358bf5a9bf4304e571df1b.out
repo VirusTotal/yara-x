@@ -12,205 +12,205 @@ dynsym_entries: 21
 dynamic_section_entries: 24
 sections:
   - type: SHT_NULL
-    flags: 0
+    flags: 0x0
     address: 0
     size: 0
     offset: 0
     name: ""
   - type: SHT_NOTE
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 680
     size: 48
     offset: 680
     name: ".note.gnu.property"
   - type: SHT_NOTE
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 728
     size: 36
     offset: 728
     name: ".note.gnu.build-id"
   - type: 1879048182
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 768
     size: 40
     offset: 768
     name: ".gnu.hash"
   - type: SHT_DYNSYM
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 808
     size: 504
     offset: 808
     name: ".dynsym"
   - type: SHT_STRTAB
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 1312
     size: 274
     offset: 1312
     name: ".dynstr"
   - type: 1879048191
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 1586
     size: 42
     offset: 1586
     name: ".gnu.version"
   - type: 1879048190
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 1632
     size: 32
     offset: 1632
     name: ".gnu.version_r"
   - type: SHT_RELA
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 1664
     size: 192
     offset: 1664
     name: ".rela.dyn"
   - type: SHT_RELA
-    flags: 66
+    flags: 0x42  # SHF_ALLOC | SHF_INFO_LINK
     address: 1856
     size: 312
     offset: 1856
     name: ".rela.plt"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 4096
     size: 27
     offset: 4096
     name: ".init"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 4128
     size: 224
     offset: 4128
     name: ".plt"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 4352
     size: 305
     offset: 4352
     name: ".text"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 4660
     size: 13
     offset: 4660
     name: ".fini"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 8192
     size: 36
     offset: 8192
     name: ".eh_frame_hdr"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 8232
     size: 132
     offset: 8232
     name: ".eh_frame"
   - type: SHT_INIT_ARRAY
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 15840
     size: 8
     offset: 11744
     name: ".init_array"
   - type: SHT_FINI_ARRAY
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 15848
     size: 8
     offset: 11752
     name: ".fini_array"
   - type: SHT_DYNAMIC
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 15856
     size: 464
     offset: 11760
     name: ".dynamic"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 16320
     size: 40
     offset: 12224
     name: ".got"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 16360
     size: 128
     offset: 12264
     name: ".got.plt"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 16488
     size: 8
     offset: 12392
     name: ".data"
   - type: SHT_NOBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 16496
     size: 8
     offset: 12400
     name: ".bss"
   - type: SHT_PROGBITS
-    flags: 48
+    flags: 0x30  # SHF_MERGE | SHF_STRINGS
     address: 0
     size: 18
     offset: 12400
     name: ".comment"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 128
     offset: 12432
     name: ".debug_aranges"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 70
     offset: 12560
     name: ".debug_info"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 36
     offset: 12630
     name: ".debug_abbrev"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 201
     offset: 12666
     name: ".debug_line"
   - type: SHT_PROGBITS
-    flags: 48
+    flags: 0x30  # SHF_MERGE | SHF_STRINGS
     address: 0
     size: 91
     offset: 12867
     name: ".debug_str"
   - type: SHT_PROGBITS
-    flags: 48
+    flags: 0x30  # SHF_MERGE | SHF_STRINGS
     address: 0
     size: 59
     offset: 12958
     name: ".debug_line_str"
   - type: SHT_PROGBITS
-    flags: 0
+    flags: 0x0
     address: 0
     size: 66
     offset: 13017
     name: ".debug_rnglists"
   - type: SHT_SYMTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 960
     offset: 13088
     name: ".symtab"
   - type: SHT_STRTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 510
     offset: 14048
     name: ".strtab"
   - type: SHT_STRTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 344
     offset: 14558

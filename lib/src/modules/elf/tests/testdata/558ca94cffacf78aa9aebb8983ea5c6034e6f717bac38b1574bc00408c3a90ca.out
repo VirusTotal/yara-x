@@ -12,115 +12,115 @@ dynsym_entries: 0
 dynamic_section_entries: 0
 sections:
   - type: SHT_NULL
-    flags: 0
+    flags: 0x0
     address: 0
     size: 0
     offset: 0
     name: ""
   - type: SHT_NOTE
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 0
     size: 24
     offset: 52
     name: ".note.Linux"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 0
     size: 240
     offset: 80
     name: ".text"
   - type: SHT_REL
-    flags: 64
+    flags: 0x40  # SHF_INFO_LINK
     address: 0
     size: 72
     offset: 1688
     name: ".rel.text"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 0
     size: 92
     offset: 320
     name: ".init.text"
   - type: SHT_REL
-    flags: 64
+    flags: 0x40  # SHF_INFO_LINK
     address: 0
     size: 48
     offset: 1760
     name: ".rel.init.text"
   - type: SHT_PROGBITS
-    flags: 6
+    flags: 0x6  # SHF_ALLOC | SHF_EXECINSTR
     address: 0
     size: 36
     offset: 412
     name: ".exit.text"
   - type: SHT_REL
-    flags: 64
+    flags: 0x40  # SHF_INFO_LINK
     address: 0
     size: 32
     offset: 1808
     name: ".rel.exit.text"
   - type: SHT_PROGBITS
-    flags: 2
+    flags: 0x2  # SHF_ALLOC
     address: 0
     size: 166
     offset: 448
     name: ".modinfo"
   - type: SHT_PROGBITS
-    flags: 50
+    flags: 0x32  # SHF_ALLOC | SHF_MERGE | SHF_STRINGS
     address: 0
     size: 4
     offset: 616
     name: ".rodata.str1.4"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 0
     size: 0
     offset: 624
     name: ".data"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 0
     size: 152
     offset: 624
     name: ".data..read_mostly"
   - type: SHT_REL
-    flags: 64
+    flags: 0x40  # SHF_INFO_LINK
     address: 0
     size: 80
     offset: 1840
     name: ".rel.data..read_mostly"
   - type: SHT_PROGBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 0
     size: 352
     offset: 800
     name: ".gnu.linkonce.this_module"
   - type: SHT_REL
-    flags: 64
+    flags: 0x40  # SHF_INFO_LINK
     address: 0
     size: 16
     offset: 1920
     name: ".rel.gnu.linkonce.this_module"
   - type: SHT_NOBITS
-    flags: 3
+    flags: 0x3  # SHF_WRITE | SHF_ALLOC
     address: 0
     size: 0
     offset: 1152
     name: ".bss"
   - type: SHT_SYMTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 272
     offset: 1152
     name: ".symtab"
   - type: SHT_STRTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 262
     offset: 1424
     name: ".strtab"
   - type: SHT_STRTAB
-    flags: 0
+    flags: 0x0
     address: 0
     size: 167
     offset: 1936

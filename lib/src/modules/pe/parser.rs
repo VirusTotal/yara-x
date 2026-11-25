@@ -1580,9 +1580,14 @@ impl<'a> PE<'a> {
         let (_, _, cert_table) = self
             .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_SECURITY, true)?;
 
+        // Share a single parser across all `WIN_CERTIFICATE` entries so the
+        // file digest cache, certificate verification cache, and total
+        // signature cap apply to the entire PE.
+        let mut authenticode_parser = AuthenticodeParser::new();
+
         // The certificate table is an array of WIN_CERTIFICATE structures.
         let signatures = fold_many0(
-            self.win_cert_parser(),
+            self.win_cert_parser(&mut authenticode_parser),
             Vec::new,
             |mut acc: Vec<_>, signatures| {
                 acc.extend(signatures);
@@ -1597,12 +1602,13 @@ impl<'a> PE<'a> {
     }
 
     /// Returns a parser that parses a WIN_CERTIFICATE structure.
-    fn win_cert_parser(
-        &self,
+    fn win_cert_parser<'b>(
+        &'b self,
+        authenticode_parser: &'b mut AuthenticodeParser<'a>,
     ) -> impl FnMut(
         &'a [u8],
     ) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
-    + '_ {
+    + 'b {
         move |input: &'a [u8]| {
             // Parse the WIN_CERTIFICATE structure.
             let (remainder, (length, _revision, _cert_type)) = (
@@ -1619,27 +1625,16 @@ impl<'a> PE<'a> {
                 })?;
 
             let (_, signature_data) = take(signature_length)(remainder)?;
-            let (_, signatures) = self.signature_parser()(signature_data)?;
+            let signatures = authenticode_parser
+                .parse(signature_data, self)
+                .map_err(|_| {
+                    Err::Error(Error::new(signature_data, ErrorKind::Fail))
+                })?;
 
             // The next WIN_CERTIFICATE is aligned to the next 8-bytes boundary.
             let (remainder, _) = take(Self::round_up::<8, _>(length))(input)?;
 
             Ok((remainder, signatures))
-        }
-    }
-
-    /// Returns a parser that parses the PKCS#7 blob that containing an
-    /// Authenticode signature.
-    fn signature_parser(
-        &self,
-    ) -> impl FnMut(
-        &'a [u8],
-    ) -> IResult<&'a [u8], Vec<AuthenticodeSignature<'a>>>
-    + '_ {
-        move |input: &'a [u8]| {
-            let signatures = AuthenticodeParser::parse(input, self)
-                .map_err(|_| Err::Error(Error::new(input, ErrorKind::Fail)))?;
-            Ok((&[], signatures))
         }
     }
 
