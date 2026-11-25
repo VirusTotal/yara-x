@@ -109,29 +109,31 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
                     y_bytes = rest;
                 }
 
-                let p = dsa::BoxedUint::from_be_slice(
-                    p_bytes,
-                    (p_bytes.len() * 8) as u32,
-                )
-                .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
+                let bits = |bytes: &[u8]| {
+                    u32::try_from(bytes.len())
+                        .ok()
+                        .and_then(|len| len.checked_mul(8))
+                        .ok_or(PublicKeyError::InvalidAlgorithm)
+                };
 
-                let q = dsa::BoxedUint::from_be_slice(
-                    q_bytes,
-                    (q_bytes.len() * 8) as u32,
-                )
-                .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
+                let p = dsa::BoxedUint::from_be_slice(p_bytes, bits(p_bytes)?)
+                    .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
 
-                let g = dsa::BoxedUint::from_be_slice(
-                    g_bytes,
-                    (g_bytes.len() * 8) as u32,
-                )
-                .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
+                let q = dsa::BoxedUint::from_be_slice(q_bytes, bits(q_bytes)?)
+                    .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
 
-                let y = dsa::BoxedUint::from_be_slice(
-                    y_bytes,
-                    (y_bytes.len() * 8) as u32,
-                )
-                .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
+                // `g` and `y` are integers modulo `p`. They must have the
+                // same precision as `p`, regardless of their encoded length,
+                // because `dsa` panics when doing modular arithmetic with
+                // integers that don't have the precision of the modulus.
+                // Values that don't fit in that precision are rejected.
+                let g =
+                    dsa::BoxedUint::from_be_slice(g_bytes, p.bits_precision())
+                        .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
+
+                let y =
+                    dsa::BoxedUint::from_be_slice(y_bytes, p.bits_precision())
+                        .map_err(|_| PublicKeyError::InvalidAlgorithm)?;
 
                 let components = Components::from_components(p, q, g)?;
                 let key = dsa::VerifyingKey::from_components(components, y)?;
