@@ -1113,6 +1113,79 @@ fn with() {
         )"#
     );
 
+    // Enums, enum-only namespaces, and function-only namespaces may exist only
+    // at compile time, yet can still be bound to `with` variables.
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with foo = test_proto2.Enumeration : (foo.ITEM_1 == 1)"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with
+              foo = test_proto2.Enumeration,
+              bar = test_proto2.int32_one :
+           (
+              foo.ITEM_1 == bar
+           )"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with foo = test_proto2.TopLevelEnumeration, bar = foo : (
+             bar.ITEM_0x1000 == 0x1000
+           )
+        "#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"with foo = test_proto2.NestedProto2, bar = foo.NestedEnumeration : (
+             foo.NestedEnumeration.ITEM_1 == 1 and bar.ITEM_1 == 1
+           )
+        "#
+    );
+
+    #[cfg(feature = "lnk-module")]
+    rule_true!(
+        r#"
+        import "lnk"
+        rule test {
+          condition:
+            with show = lnk.ShowCommand : ( show.NORMAL == 1 )
+        }
+        "#,
+        &[]
+    );
+
+    #[cfg(feature = "vt-module")]
+    rule_true!(
+        r#"
+        import "vt"
+        rule test {
+          condition:
+            with http = vt.Http, method = http.Method : (
+              http.Method.GET == method.GET
+            )
+        }
+        "#,
+        &[]
+    );
+
+    #[cfg(feature = "cuckoo-module")]
+    rule_true!(
+        r#"
+        import "cuckoo"
+        rule test {
+          condition:
+            with net = cuckoo.network, n = net, dns = n.dns_lookup : (
+              not net.dns_lookup(/foo/) and not dns(/foo/)
+            )
+        }
+        "#,
+        &[]
+    );
+
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"with foo = test_proto2.add:

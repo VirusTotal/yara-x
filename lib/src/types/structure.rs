@@ -440,6 +440,35 @@ impl Struct {
         self.is_enum
     }
 
+    /// Returns true if every field in this structure can be resolved purely
+    /// at compile time — either a non-method function, a constant value when
+    /// `constant_folding` is enabled, or a nested structure for which this is
+    /// also true.
+    ///
+    /// Structures that satisfy this predicate may exist only at compile time:
+    /// enum structures and enum-only namespaces are omitted at scan time when
+    /// `constant_folding` is enabled (see `generate_fields_for_enums` in
+    /// [`Struct::from_proto_descriptor_and_msg`]), and function-only
+    /// namespaces created from dotted module exports (e.g. `cuckoo.network`)
+    /// are never created at scan time.
+    pub fn is_compile_time_only(&self, constant_folding: bool) -> bool {
+        let mut stack = vec![self];
+
+        while let Some(structure) = stack.pop() {
+            for field in &structure.fields {
+                match &field.type_value {
+                    TypeValue::Struct(s) => stack.push(s),
+                    TypeValue::Func(f) if !f.is_method() => {}
+                    type_value
+                        if constant_folding && type_value.is_const() => {}
+                    _ => return false,
+                }
+            }
+        }
+
+        true
+    }
+
     /// Returns the protobuf type this struct was created from, if any.
     pub fn protobuf_type_name(&self) -> Option<&str> {
         self.protobuf_type_name.as_deref()

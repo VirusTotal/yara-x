@@ -1790,7 +1790,20 @@ fn with_expr_from_ast<'src>(
                 .insert(item.identifier.name, Symbol::Func(func.clone()));
         } else {
             let var = stack_frame.new_var(type_value.ty());
-            declarations.push((var, expr));
+            // Structures whose fields are all resolved at compile time (enums
+            // and enum-only namespaces when constant folding is enabled, and
+            // function-only namespaces like `cuckoo.network`) may not exist at
+            // scan time, so their initializer must not be evaluated at runtime.
+            // Every access through the variable is resolved at compile time,
+            // so the runtime value of the variable itself is never read.
+            let is_compile_time_only = matches!(
+                &type_value,
+                TypeValue::Struct(s)
+                    if s.is_compile_time_only(ctx.ir.constant_folding)
+            );
+            if !is_compile_time_only {
+                declarations.push((var, expr));
+            }
             symbols
                 .borrow_mut()
                 .insert(item.identifier.name, Symbol::Var { var, type_value });
