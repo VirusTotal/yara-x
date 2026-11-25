@@ -81,15 +81,37 @@ pub trait AuthenticodeHasher {
     fn hash(&self, digest: &mut dyn digest::Update) -> Option<()>;
 }
 
-/// Parses Authenticode signatures in a PE file.
+/// Cache with the results of verifying that a certificate was signed by
+/// another one.
+///
+/// Keys are the DER encodings of the signed certificate and its signer, in
+/// that order. The value is `true` if the signature in the signed certificate
+/// was produced with the signer's key.
+type CertVerificationCache<'a> = FxHashMap<(&'a [u8], &'a [u8]), bool>;
+
+/// Parses Authenticode signatures in a PE or MSI file.
+///
+/// Reuse a single instance across multiple `WIN_CERTIFICATE` entries of the
+/// same file so the file digest cache, certificate verification cache, and
+/// total signature limit are shared.
 ///
 /// Some resources for understanding Authenticode signatures:
 /// - <https://blog.trailofbits.com/2020/05/27/verifying-windows-binaries-without-windows/>
 /// - <https://docs.clamav.net/appendix/Authenticode.html>
 /// - <https://download.microsoft.com/download/9/c/5/9c5b2167/8017-4bae-9fde-d599bac8184a/authenticode_pe.docx>
-pub struct AuthenticodeParser {}
+pub struct AuthenticodeParser<'a> {
+    digest_cache: FxHashMap<ObjectIdentifier, Vec<u8>>,
+    cert_cache: CertVerificationCache<'a>,
+    remaining_sigs: usize,
+}
 
-impl AuthenticodeParser {
+impl Default for AuthenticodeParser<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a> AuthenticodeParser<'a> {
     /// Maximum nesting depth for `MS_SPC_NESTED_SIGNATURE` attributes.
     const MAX_NESTED_DEPTH: usize = 8;
 
@@ -102,37 +124,41 @@ impl AuthenticodeParser {
     /// Maximum certificates retained on a single `AuthenticodeSignature`.
     const MAX_CERTIFICATES_PER_SIG: usize = 256;
 
+    /// Creates a new [`AuthenticodeParser`].
+    pub fn new() -> Self {
+        Self {
+            digest_cache: FxHashMap::default(),
+            cert_cache: CertVerificationCache::default(),
+            remaining_sigs: Self::MAX_TOTAL_SIGNATURES,
+        }
+    }
+
     /// Parses Authenticode signatures from DER-encoded bytes.
-    pub fn parse<'a>(
+    pub fn parse(
+        &mut self,
         input: &'a [u8],
         authenticode_hasher: &impl AuthenticodeHasher,
     ) -> Result<Vec<AuthenticodeSignature<'a>>, ParseError> {
+        if self.remaining_sigs == 0 {
+            return Ok(Vec::new());
+        }
+
         let content_info = ContentInfo::from_ber(input)
             .map_err(|_| ParseError::InvalidContentInfo)?;
 
-        let mut digest_cache = FxHashMap::default();
-        let mut remaining_sigs = Self::MAX_TOTAL_SIGNATURES;
-
-        Self::parse_content_info(
-            content_info,
-            authenticode_hasher,
-            &mut digest_cache,
-            0,
-            &mut remaining_sigs,
-        )
+        self.parse_content_info(content_info, authenticode_hasher, 0)
     }
 
-    fn parse_content_info<'a>(
+    fn parse_content_info(
+        &mut self,
         content_info: ContentInfo<'a>,
         authenticode_hasher: &impl AuthenticodeHasher,
-        digest_cache: &mut FxHashMap<ObjectIdentifier, Vec<u8>>,
         depth: usize,
-        remaining_sigs: &mut usize,
     ) -> Result<Vec<AuthenticodeSignature<'a>>, ParseError> {
-        if depth > Self::MAX_NESTED_DEPTH || *remaining_sigs == 0 {
+        if depth > Self::MAX_NESTED_DEPTH || self.remaining_sigs == 0 {
             return Ok(Vec::new());
         }
-        *remaining_sigs -= 1;
+        self.remaining_sigs -= 1;
 
         if content_info.content_type != rfc5911::ID_SIGNED_DATA {
             return Err(ParseError::InvalidContentType(
@@ -250,26 +276,24 @@ impl AuthenticodeParser {
                     if depth < Self::MAX_NESTED_DEPTH =>
                 {
                     for value in &attr.attr_values {
-                        if *remaining_sigs == 0 {
+                        if self.remaining_sigs == 0 {
                             break;
                         }
                         if let Ok(content_info) = value.try_into() {
-                            if let Ok(nested) = Self::parse_content_info(
+                            if let Ok(nested) = self.parse_content_info(
                                 content_info,
                                 authenticode_hasher,
-                                digest_cache,
                                 depth + 1,
-                                remaining_sigs,
                             ) {
                                 nested_signatures.extend(nested);
                             }
                         } else {
-                            *remaining_sigs -= 1;
+                            self.remaining_sigs -= 1;
                         }
                     }
                 }
                 oid::MS_COUNTERSIGN => {
-                    Self::parse_ms_countersignature_attr(
+                    self.parse_ms_countersignature_attr(
                         &mut signature_digests,
                         attr,
                         &mut certificates,
@@ -278,7 +302,7 @@ impl AuthenticodeParser {
                     )?;
                 }
                 rfc5911::ID_COUNTERSIGNATURE => {
-                    Self::parse_pkcs9_countersignature_attr(
+                    self.parse_pkcs9_countersignature_attr(
                         &mut signature_digests,
                         attr,
                         &mut certificates,
@@ -318,7 +342,8 @@ impl AuthenticodeParser {
             }
         };
 
-        let computed_authenticode_hash = digest_cache
+        let computed_authenticode_hash = self
+            .digest_cache
             .entry(canonical_alg)
             .or_insert_with(|| match canonical_alg {
                 rfc5912::ID_MD_2 => {
@@ -375,7 +400,11 @@ impl AuthenticodeParser {
                 signed_data_raw,
                 signer_info_digest,
             )
-            && verify_signer_info(&signer_info, certificates.as_slice());
+            && verify_signer_info(
+                &signer_info,
+                certificates.as_slice(),
+                &mut self.cert_cache,
+            );
 
         let mut signatures = Vec::with_capacity(nested_signatures.len() + 1);
 
@@ -403,7 +432,8 @@ impl AuthenticodeParser {
         Ok(signatures)
     }
 
-    fn parse_ms_countersignature_attr<'a>(
+    fn parse_ms_countersignature_attr(
+        &mut self,
         signature_digests: &mut MessageDigestCache<'a>,
         attr: &Attribute<'a>,
         certificates: &mut Vec<Certificate<'a>>,
@@ -462,7 +492,11 @@ impl AuthenticodeParser {
                     sd.content_info.content.as_bytes(),
                     cs_si_digest,
                 )
-                && verify_signer_info(cs_si, certificates.as_slice());
+                && verify_signer_info(
+                    cs_si,
+                    certificates.as_slice(),
+                    &mut self.cert_cache,
+                );
 
             countersignatures.push(countersignature);
         }
@@ -470,7 +504,8 @@ impl AuthenticodeParser {
         Ok(())
     }
 
-    fn parse_pkcs9_countersignature_attr<'a>(
+    fn parse_pkcs9_countersignature_attr(
+        &mut self,
         signature_digests: &mut MessageDigestCache<'a>,
         attr: &Attribute<'a>,
         certificates: &mut Vec<Certificate<'a>>,
@@ -489,7 +524,11 @@ impl AuthenticodeParser {
 
                 countersignature.verified = signature_digests
                     .verify(&cs_si.digest_algorithm, countersignature.digest)
-                    && verify_signer_info(&cs_si, certificates.as_slice());
+                    && verify_signer_info(
+                        &cs_si,
+                        certificates.as_slice(),
+                        &mut self.cert_cache,
+                    );
 
                 countersignatures.push(countersignature);
             }
@@ -498,7 +537,7 @@ impl AuthenticodeParser {
         Ok(())
     }
 
-    fn pkcs9_countersignature<'a>(
+    fn pkcs9_countersignature(
         si: &SignerInfo<'a>,
     ) -> Result<AuthenticodeCountersign<'a>, ParseError> {
         let mut digest = None;
@@ -925,26 +964,18 @@ impl<'a> MessageDigestCache<'a> {
 /// The verification of the certificate includes the verification of the whole
 /// certificate chain, until reaching a self-signed certificate or some
 /// certificate that was signed by an "external" one (a certificate that is not
-/// included in the PE).
-fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
+/// included in the PE). The result of verifying each link in the chain is
+/// cached in `cert_cache` so shared links are verified only once.
+fn verify_signer_info<'a>(
+    si: &SignerInfo,
+    certs: &[Certificate<'a>],
+    cert_cache: &mut CertVerificationCache<'a>,
+) -> bool {
     let digest_algorithm =
         match oid_to_object_identifier(si.digest_algorithm.oid()) {
             Ok(oid) => oid,
             Err(_) => return false,
         };
-
-    // Get a certificate chain that starts with the certificate that signed
-    // the data that this SignerInfo refers to. This chain goes from the
-    // signing certificate up in the chain of truth until a self-signed
-    // certificate or some "external" certificate.
-    let cert_chain = CertificateChain::new(certs, |cert| {
-        cert.tbs_certificate.serial.eq(&si.serial_number)
-    });
-
-    // Make sure that whole certificate chain is valid.
-    if !cert_chain.verify() {
-        return false;
-    }
 
     // Search for the certificate that signed the digest.
     let signing_cert = match certs
@@ -1005,8 +1036,10 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
     let mut buf = Vec::new();
     attrs_set.write_der(&mut buf).unwrap();
 
-    // Verify that the signature in `SignerInfo` is correct.
-    match digest_algorithm {
+    // Verify that the signature in `SignerInfo` is correct before walking the
+    // certificate chain, so invalid signatures are rejected without verifying
+    // parent certificates.
+    let sig_verified = match digest_algorithm {
         rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
             key.verify_digest::<Md2>(Md2::digest(&buf), si.signature)
         }
@@ -1032,7 +1065,22 @@ fn verify_signer_info(si: &SignerInfo, certs: &[Certificate<'_>]) -> bool {
             error!("unknown digest algorithm: {:?}", digest_algorithm);
             false
         }
+    };
+
+    if !sig_verified {
+        return false;
     }
+
+    // Get a certificate chain that starts with the certificate that signed
+    // the data that this SignerInfo refers to. This chain goes from the
+    // signing certificate up in the chain of truth until a self-signed
+    // certificate or some "external" certificate.
+    let cert_chain = CertificateChain::new(certs, |cert| {
+        cert.tbs_certificate.serial.eq(&si.serial_number)
+    });
+
+    // Make sure that whole certificate chain is valid.
+    cert_chain.verify(cert_cache)
 }
 
 /// Represents a certificate chain.
@@ -1090,21 +1138,28 @@ impl<'a, 'b> CertificateChain<'a, 'b> {
     /// external certificate (not included in the PE) no attempt is made to
     /// continue the validation by retrieving the external certificate from the
     /// operating system certificate store.
-    pub fn verify(self) -> bool {
+    ///
+    /// The result for each `(signed, signer)` certificate pair is stored in
+    /// `cache` so pairs that have already been verified are not verified again.
+    pub fn verify(self, cache: &mut CertVerificationCache<'a>) -> bool {
         // Iterate over the chain taking a certificate and its signer on each
         // iteration.
         for (signed, signer) in self.tuple_windows() {
-            let key = match PublicKey::try_from(
-                &signer.x509.tbs_certificate.subject_pki,
-            ) {
-                Ok(key) => key,
-                Err(_) => return false,
-            };
-            if !key.verify(
-                &signed.x509.signature_algorithm,
-                signed.x509.tbs_certificate.as_ref(),
-                signed.x509.signature_value.as_ref(),
-            ) {
+            let verified = *cache
+                .entry((signed.x509.as_raw(), signer.x509.as_raw()))
+                .or_insert_with(|| {
+                    PublicKey::try_from(
+                        &signer.x509.tbs_certificate.subject_pki,
+                    )
+                    .is_ok_and(|key| {
+                        key.verify(
+                            &signed.x509.signature_algorithm,
+                            signed.x509.tbs_certificate.as_ref(),
+                            signed.x509.signature_value.as_ref(),
+                        )
+                    })
+                });
+            if !verified {
                 return false;
             }
         }
@@ -1196,5 +1251,91 @@ mod tests {
         assert!(!cache.verify(&alg, md2.as_slice()));
         assert!(!cache.verify(&alg, &[]));
         assert_eq!(cache.digests.len(), 2);
+    }
+
+    #[test]
+    fn cert_verification_cache() {
+        use crate::modules::utils::asn1::SignedData;
+
+        fn tlv(tag: u8, content: &[u8]) -> Vec<u8> {
+            let mut out = vec![tag];
+            if content.len() < 0x80 {
+                out.push(content.len() as u8);
+            } else {
+                let len = content.len().to_be_bytes();
+                let len = &len[len.iter().position(|&b| b != 0).unwrap()..];
+                out.push(0x80 | len.len() as u8);
+                out.extend_from_slice(len);
+            }
+            out.extend_from_slice(content);
+            out
+        }
+
+        fn cn(name: &[u8]) -> Vec<u8> {
+            let oid_cn = tlv(0x06, &[0x55, 0x04, 0x03]);
+            tlv(
+                0x30,
+                &tlv(0x31, &tlv(0x30, &[oid_cn, tlv(0x0c, name)].concat())),
+            )
+        }
+
+        fn dummy_cert(serial: u8, subject: &[u8], issuer: &[u8]) -> Vec<u8> {
+            let alg = tlv(
+                0x30,
+                &[
+                    tlv(0x06, rfc5912::SHA_256_WITH_RSA_ENCRYPTION.as_bytes()),
+                    vec![0x05, 0x00],
+                ]
+                .concat(),
+            );
+            let validity = tlv(
+                0x30,
+                &[tlv(0x17, b"200101000000Z"), tlv(0x17, b"300101000000Z")]
+                    .concat(),
+            );
+            let spki = tlv(0x30, &[alg.clone(), tlv(0x03, &[0x00])].concat());
+            let tbs = tlv(
+                0x30,
+                &[
+                    tlv(0xa0, &tlv(0x02, &[0x02])),
+                    tlv(0x02, &[serial]),
+                    alg.clone(),
+                    cn(issuer),
+                    validity,
+                    cn(subject),
+                    spki,
+                ]
+                .concat(),
+            );
+            tlv(0x30, &[tbs, alg, tlv(0x03, &[0x00])].concat())
+        }
+
+        // Two-cert chain: leaf (serial 1, issued by "root") -> root (serial 2,
+        // self-signed).
+        let raw =
+            [dummy_cert(1, b"leaf", b"root"), dummy_cert(2, b"root", b"root")]
+                .concat();
+        let (rem, certs) = SignedData::parse_certificates(&raw);
+        assert!(rem.is_empty());
+        assert_eq!(certs.len(), 2);
+
+        let mut cache = CertVerificationCache::default();
+        let leaf_chain = || {
+            CertificateChain::new(&certs, |c| {
+                c.tbs_certificate.serial == BigUint::from(1u8)
+            })
+        };
+
+        // First walk fails (dummy SPKI) and caches the (leaf, root) link.
+        assert!(!leaf_chain().verify(&mut cache));
+        assert_eq!(cache.len(), 1);
+        let key = (certs[0].x509.as_raw(), certs[1].x509.as_raw());
+        assert_eq!(cache.get(&key), Some(&false));
+
+        // Flipping the cached entry proves subsequent walks read from cache
+        // instead of re-verifying the link.
+        cache.insert(key, true);
+        assert!(leaf_chain().verify(&mut cache));
+        assert_eq!(cache.len(), 1);
     }
 }

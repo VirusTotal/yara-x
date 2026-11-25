@@ -64,7 +64,8 @@ impl Msi {
             .map_err(|_| "Failed to read digital signature stream")?;
 
         let hasher = MsiHasher { olecf };
-        let signatures = AuthenticodeParser::parse(&sig_data, &hasher)
+        let signatures = AuthenticodeParser::new()
+            .parse(&sig_data, &hasher)
             .map_err(|_| "Failed to parse signature")?;
 
         let mut msi_proto = MsiProto::new();
