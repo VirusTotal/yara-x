@@ -1,11 +1,13 @@
 use std::mem;
 use std::mem::size_of;
+use std::ops::Range;
 
 use bstr::ByteSlice;
 use regex_syntax::hir::{Class, Hir, HirKind, Visitor, visit};
 
 use crate::compiler::{
-    Atom, MaskedAtom, best_range_in_bytes, best_range_in_masked_bytes,
+    Atom, MAX_ATOMS_PER_REGEXP, MaskedAtom, best_range_in_bytes,
+    best_range_in_masked_bytes,
 };
 use crate::re;
 use crate::re::fast::instr::Instr;
@@ -158,25 +160,29 @@ impl Compiler {
         code.extend_from_slice(fwd_code.into_inner().as_slice());
 
         let mut atoms = Vec::new();
+        let mut masked_atoms = Vec::new();
 
         let best_atoms = match best_atoms {
             Some(best_atoms) => best_atoms,
             None => return Err(Error::FastIncompatible),
         };
 
+        // Computes how many concrete atoms a masked range will expand into:
+        // each zero bit in the mask doubles the number of combinations.
+        let count_combinations = |mask: &[u8], range: &Range<usize>| {
+            mask[range.clone()].iter().fold(1_usize, |acc, m| {
+                acc.saturating_mul(1_usize << m.count_zeros())
+            })
+        };
+
+        // Literal atoms are added directly, while masked atoms are collected
+        // as `(pattern, mask, range, combinations)` first so we can enforce
+        // MAX_ATOMS_PER_REGEXP before expanding their mask combinations.
         for (pattern, mask, range, _) in best_atoms {
             match (pattern, mask) {
                 (pattern, Some(mask)) => {
-                    let masked_atom =
-                        MaskedAtom::from_slice_range(pattern, mask, range)
-                            .ok_or(Error::FastIncompatible)?;
-                    for atom in masked_atom.mask_combinations() {
-                        atoms.push(RegexpAtom {
-                            atom,
-                            fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
-                            bck_code: bck_code_start.map(BckCodeLoc::from),
-                        })
-                    }
+                    let combinations = count_combinations(mask, &range);
+                    masked_atoms.push((pattern, mask, range, combinations));
                 }
                 (pattern, None) => atoms.push(RegexpAtom {
                     atom: Atom::from_slice_range(pattern, range)
@@ -184,6 +190,79 @@ impl Compiler {
                     fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
                     bck_code: bck_code_start.map(BckCodeLoc::from),
                 }),
+            }
+        }
+
+        // Each masked atom expands into one atom per combination of its masked
+        // bits (e.g., `1? 2?` expands into 256 atoms). If the total number of
+        // atoms exceeds MAX_ATOMS_PER_REGEXP, repeatedly narrow the masked
+        // atom with the most combinations until the total fits within the
+        // limit.
+        loop {
+            let num_atoms = masked_atoms
+                .iter()
+                .map(|(_, _, _, combinations)| *combinations)
+                .fold(atoms.len(), usize::saturating_add);
+
+            if num_atoms <= MAX_ATOMS_PER_REGEXP {
+                break;
+            }
+
+            // Pick the masked atom with the most combinations that can still
+            // be narrowed without dropping below 2 bytes. If no atom can be
+            // narrowed further, fall back to Thompson's compiler.
+            let Some((_, mask, range, combinations)) = masked_atoms
+                .iter_mut()
+                .filter(|(_, _, range, combinations)| {
+                    range.len() > 2 && *combinations > 1
+                })
+                .max_by_key(|(_, _, _, combinations)| *combinations)
+            else {
+                return Err(Error::FastIncompatible);
+            };
+
+            // Drop a byte from whichever end has more wildcard bits, so fixed
+            // bytes are preserved (e.g., `4? 2? 82 3C` drops `4?` rather than
+            // `3C`).
+            if mask[range.start].count_zeros()
+                > mask[range.end - 1].count_zeros()
+            {
+                range.start += 1;
+            } else {
+                range.end -= 1;
+            }
+
+            // Strip any full-wildcard (`??`) bytes newly exposed at either end.
+            while range.start < range.end && mask[range.start] == 0 {
+                range.start += 1;
+            }
+            while range.start < range.end && mask[range.end - 1] == 0 {
+                range.end -= 1;
+            }
+
+            // If stripping wildcards left fewer than 2 bytes, fail early
+            // instead of expanding atoms that the min_atom_len check below
+            // would reject anyway.
+            if range.len() < 2 {
+                return Err(Error::FastIncompatible);
+            }
+
+            *combinations = count_combinations(mask, range);
+        }
+
+        // Expand the remaining masked atoms. Constructing each MaskedAtom from
+        // the narrowed range sets `backtrack` to `range.start` and marks
+        // narrowed atoms as inexact automatically.
+        for (pattern, mask, range, _) in masked_atoms {
+            let masked_atom =
+                MaskedAtom::from_slice_range(pattern, mask, range)
+                    .ok_or(Error::FastIncompatible)?;
+            for atom in masked_atom.mask_combinations() {
+                atoms.push(RegexpAtom {
+                    atom,
+                    fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
+                    bck_code: bck_code_start.map(BckCodeLoc::from),
+                })
             }
         }
 
@@ -579,5 +658,119 @@ impl InstrSeq {
             .copy_from_slice(&alternatives_len.to_le_bytes());
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::Regexp;
+
+    fn compile(regexp: &str) -> Result<Vec<RegexpAtom>, Error> {
+        let hir =
+            re::parser::Parser::new().parse(&Regexp::new(regexp)).unwrap();
+        Compiler::new().compile(&hir, &mut Vec::new())
+    }
+
+    #[test]
+    fn max_atoms_per_regexp() {
+        // Single 4-byte masked atom with 2^20 combinations -> trimmed to 2 bytes (1024 atoms).
+        let atoms = compile(
+            r"/[\x00-\x1f][\x00-\x1f][\x00-\x1f][\x00-\x1f].{1,2}[\x00-\x1f]/",
+        )
+        .unwrap();
+        assert_eq!(atoms.len(), 1024);
+        assert!(atoms.iter().all(|a| a.len() == 2 && !a.atom.is_exact()));
+
+        // Mixed literal + masked: only the masked alternative is trimmed.
+        let atoms = compile(
+            r"/(abcd|[\x00-\x1f][\x00-\x1f][\x00-\x1f][\x00-\x1f]).{1,2}[\x00-\x1f]/",
+        )
+        .unwrap();
+        assert_eq!(atoms.len(), 1 + 1024);
+        assert_eq!(atoms.iter().filter(|a| a.len() == 4).count(), 1);
+        assert_eq!(atoms.iter().filter(|a| a.len() == 2).count(), 1024);
+
+        // Exact boundary at MAX_ATOMS_PER_REGEXP (4 * 4096 = 16384 untouched;
+        // 5 * 4096 trims 2 alternatives from the start to 3 bytes).
+        let make_alts = |n: usize| {
+            let alts = (0..n)
+                .map(|i| {
+                    let lo = i * 16;
+                    let hi = lo + 15;
+                    format!(
+                        r"[\x{lo:02x}-\x{hi:02x}][\x00-\x0f][\x00-\x0f]\x{:02x}",
+                        0x80 + i
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("|");
+            format!("/({alts}).{{1,2}}\\xaa/")
+        };
+
+        let atoms = compile(&make_alts(4)).unwrap();
+        assert_eq!(atoms.len(), MAX_ATOMS_PER_REGEXP);
+        assert!(atoms.iter().all(|a| a.len() == 4 && a.atom.backtrack() == 0));
+
+        let atoms = compile(&make_alts(5)).unwrap();
+        assert_eq!(atoms.len(), 3 * 4096 + 2 * 256);
+        assert_eq!(
+            atoms
+                .iter()
+                .filter(|a| a.len() == 3 && a.atom.backtrack() == 1)
+                .count(),
+            2 * 256
+        );
+
+        // 65 leading-wildcard alternatives (65 * 256 = 16640): narrows 2 from
+        // the start (backtrack == 1, len 3) instead of dropping fixed bytes
+        // from the end and falling back to Thompson.
+        let alts = (0..65_usize)
+            .map(|i| {
+                let lo = (i % 16) * 16;
+                let hi = lo + 15;
+                format!(
+                    r"[\x{lo:02x}-\x{hi:02x}][\x20-\x2f]\x{:02x}\x{:02x}",
+                    0x80 + (i / 16),
+                    0x3c + i,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("|");
+        let atoms = compile(&format!("/({alts}).{{1,2}}\\xaa/")).unwrap();
+        assert_eq!(atoms.len(), 63 * 256 + 2 * 16);
+        assert_eq!(
+            atoms
+                .iter()
+                .filter(|a| a.len() == 3 && a.atom.backtrack() == 1)
+                .count(),
+            2 * 16
+        );
+
+        // 16 alternatives of 4 * 5-bit masked bytes fit at length 2 (16 * 1024 = 16384);
+        // 17 and 64 alternatives exceed the budget and fall back to Thompson.
+        let masked_5bit_alt = |i: usize| {
+            let b = |blk: usize| {
+                let lo = 32 * blk;
+                format!(r"[\x{lo:02x}-\x{:02x}]", lo + 31)
+            };
+            format!("{}{}{}{}", b(i % 8), b(0), b(0), b(i / 8))
+        };
+
+        let alts_16 =
+            (0..16).map(masked_5bit_alt).collect::<Vec<_>>().join("|");
+        let atoms =
+            compile(&format!("/({alts_16}).{{1,2}}[\\x00-\\x1f]/")).unwrap();
+        assert_eq!(atoms.len(), MAX_ATOMS_PER_REGEXP);
+        assert!(atoms.iter().all(|a| a.len() == 2));
+
+        for n in [17, 64] {
+            let alts =
+                (0..n).map(masked_5bit_alt).collect::<Vec<_>>().join("|");
+            assert!(matches!(
+                compile(&format!("/({alts}).{{1,2}}[\\x00-\\x1f]/")),
+                Err(Error::FastIncompatible)
+            ));
+        }
     }
 }

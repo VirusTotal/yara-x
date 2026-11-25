@@ -1446,6 +1446,71 @@ fn hex_patterns() {
         &[0x01, 0x02, 0x0A, 0x0A, 0x03, 0x04, 0x05, 0x06]
     );
 
+    // Masked atom exceeding MAX_ATOMS_PER_REGEXP (16^4 = 65536) is trimmed to
+    // 3 bytes (4096 atoms) and verified by FastVM.
+    pattern_match!(
+        r#"{ ?1 ?2 ?3 ?4 [1-2] ?5 }"#,
+        &[0xA1, 0xB2, 0xC3, 0xD4, 0xFF, 0xE5],
+        &[0xA1, 0xB2, 0xC3, 0xD4, 0xFF, 0xE5]
+    );
+
+    pattern_false!(
+        r#"{ ?1 ?2 ?3 ?4 [1-2] ?5 }"#,
+        &[0xA1, 0xB2, 0xC3, 0xD0, 0xFF, 0xE5]
+    );
+
+    // Alternation mixing an over-budget masked atom and a literal atom, with
+    // both backward and forward FastVM code.
+    pattern_match!(
+        r#"{ 00 [1-2] (?1 ?2 ?3 ?4 | AA BB CC DD) [1-2] ?5 }"#,
+        &[0x00, 0x99, 0x11, 0x22, 0x33, 0x44, 0x88, 0x75],
+        &[0x00, 0x99, 0x11, 0x22, 0x33, 0x44, 0x88, 0x75]
+    );
+
+    pattern_match!(
+        r#"{ 00 [1-2] (?1 ?2 ?3 ?4 | AA BB CC DD) [1-2] ?5 }"#,
+        &[0x00, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0x88, 0x75],
+        &[0x00, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0x88, 0x75]
+    );
+
+    pattern_false!(
+        r#"{ 00 [1-2] (?1 ?2 ?3 ?4 | AA BB CC DD) [1-2] ?5 }"#,
+        &[0x00, 0x99, 0x11, 0x22, 0x33, 0x40, 0x88, 0x75]
+    );
+
+    pattern_false!(
+        r#"{ 00 [1-2] (?1 ?2 ?3 ?4 | AA BB CC DD) [1-2] ?5 }"#,
+        &[0x01, 0x99, 0x11, 0x22, 0x33, 0x44, 0x88, 0x75]
+    );
+
+    // 65-alternative leading-wildcard hex pattern (65 * 256 = 16640 atoms)
+    // narrows 2 alternatives from the start (backtrack == 1) while keeping
+    // the rest untouched. Verify both trimmed and untrimmed alternatives match
+    // and that the dropped leading byte and backward piece are still checked.
+    let alts = (0..65_u8)
+        .map(|i| format!("{:X}? 1? 80 {:02X}", i % 16, i))
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let rule = format!(
+        "rule test {{ strings: $a = {{ 00 [1-2] ({alts}) [1-2] FF }} condition: $a }}"
+    );
+    rule_true!(
+        rule.as_str(),
+        &[0x00, 0x99, 0x0A, 0x1B, 0x80, 0x00, 0x88, 0xFF]
+    );
+    rule_true!(
+        rule.as_str(),
+        &[0x00, 0x99, 0x0A, 0x1B, 0x80, 0x40, 0x88, 0xFF]
+    );
+    rule_false!(
+        rule.as_str(),
+        &[0x00, 0x99, 0x1A, 0x1B, 0x80, 0x40, 0x88, 0xFF]
+    );
+    rule_false!(
+        rule.as_str(),
+        &[0x01, 0x99, 0x0A, 0x1B, 0x80, 0x40, 0x88, 0xFF]
+    );
+
     pattern_match!(
         r#"{ 01 02 03 04 [1-2] (06 07 | 07 08) }"#,
         &[0x01, 0x02, 0x03, 0x04, 0xFF, 0x06, 0x07],
