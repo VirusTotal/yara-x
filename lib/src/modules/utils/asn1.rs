@@ -209,8 +209,14 @@ impl<'a> SignedData<'a> {
             })
             .map_err(|_| BerValueError)?;
 
+        // The CRLs are not used, so the content of the field is skipped
+        // without being parsed. `RevocationInfoChoices` is a `SET OF` that
+        // can be empty or contain multiple items, so it must not be parsed
+        // as a single BER element.
         let (remainder, _revocation_info) = OptTaggedParser::from(1)
-            .parse_ber(remainder, |_, data| parse_ber_any(data))?;
+            .parse_ber(remainder, |_, _| -> BerResult<'_, ()> {
+                Ok((&[], ()))
+            })?;
 
         let (remainder, signer_infos) =
             parse_ber_set_of_v(SignerInfo::parse)(remainder)?;
@@ -690,4 +696,39 @@ fn string_from_utf16be(v: &[u8]) -> Option<String> {
         char::decode_utf16(codepoints).collect::<Result<_, _>>().ok()?;
 
     Some(x)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn signed_data_crls() {
+        // Minimal `SignedData` fields preceding `crls`: version (1),
+        // empty digestAlgorithms, and encapContentInfo (data OID + empty
+        // octet string).
+        let head = [
+            0x02, 0x01, 0x01, 0x31, 0x00, 0x30, 0x0f, 0x06, 0x09, 0x2a, 0x86,
+            0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x01, 0xa0, 0x02, 0x04, 0x00,
+        ];
+        // Empty `signerInfos`.
+        let tail = [0x31, 0x00];
+
+        // `crls` is an optional `SET OF` that may be absent, empty, or have
+        // one or more items.
+        let crls_cases: [&[u8]; 4] = [
+            &[],
+            &[0xa1, 0x00],
+            &[0xa1, 0x02, 0x30, 0x00],
+            &[0xa1, 0x04, 0x30, 0x00, 0x30, 0x00],
+        ];
+
+        for crls in crls_cases {
+            let data = [&head[..], crls, &tail[..]].concat();
+            let (remainder, signed_data) =
+                SignedData::parse_inner(&data).unwrap();
+            assert!(remainder.is_empty());
+            assert_eq!(signed_data.version, 1);
+        }
+    }
 }
