@@ -92,3 +92,9 @@ name = "zip_parser"
 path = "fuzz_targets/zip_parser.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "rules_deserialize"
+path = "fuzz_targets/rules_deserialize.rs"
+test = false
+doc = false
