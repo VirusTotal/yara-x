@@ -122,6 +122,12 @@ impl Report {
         self.title.as_str()
     }
 
+    /// Returns the spans of the report's labels.
+    #[inline]
+    pub(crate) fn label_spans(&self) -> impl Iterator<Item = &Span> {
+        self.labels.iter().map(|(_, code_loc, _)| &code_loc.span)
+    }
+
     /// Returns the report's labels.
     pub(crate) fn labels(&self) -> impl Iterator<Item = Label<'_>> {
         self.labels.iter().map(|(level, code_loc, text)| {

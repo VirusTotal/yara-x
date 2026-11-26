@@ -3395,14 +3395,15 @@ impl Warnings {
                 && let Some(spans) =
                     self.suppressed_warnings.get(warning.code())
             {
-                'l: for disabled_span in spans {
-                    for label in warning.labels() {
-                        if disabled_span.contains(label.span()) {
-                            warn = false;
-                            break 'l;
-                        }
-                    }
-                }
+                // Use `label_spans()` instead of `labels()` to avoid acquiring
+                // the code cache lock and computing line/column numbers when
+                // only the label spans are needed.
+                warn = !spans.iter().any(|suppressed_span| {
+                    warning
+                        .report()
+                        .label_spans()
+                        .any(|label_span| suppressed_span.contains(label_span))
+                });
             }
 
             if warn {
@@ -3455,10 +3456,15 @@ impl Warnings {
 
     /// Suppress the warning with the given code, for the given span.
     pub fn suppress(&mut self, code: &str, span: Span) {
-        self.suppressed_warnings
-            .entry(code.to_string())
-            .or_default()
-            .push(span);
+        let spans =
+            self.suppressed_warnings.entry(code.to_string()).or_default();
+
+        // A comment that suppresses the same warning multiple times (e.g.
+        // `// suppress: foo, foo`) produces consecutive calls with the same
+        // span. Don't store the span more than once.
+        if spans.last() != Some(&span) {
+            spans.push(span);
+        }
     }
 
     #[inline]
