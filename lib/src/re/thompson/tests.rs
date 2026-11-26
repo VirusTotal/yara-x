@@ -1539,6 +1539,14 @@ fn re_atoms() {
         ]
     });
 
+    assert_re_atoms!(r#"([a-c]xy?)"#, {
+        vec![
+            Atom::inexact(b"ax"),
+            Atom::inexact(b"bx"),
+            Atom::inexact(b"cx"),
+        ]
+    });
+
     assert_re_atoms!(
         r#"(?s)abc.d(((xy|xz)w.)|[a-c])(((xy|xz)w.)|[a-c])"#,
         vec![Atom::inexact(b"abc")]

@@ -2232,12 +2232,24 @@ fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
         atoms[idx].make_inexact();
     }
 
-    // Since to_remove was populated in ascending order, by iterating it
-    // in reverse order we get indexes in descending order to safely remove
-    // elements without index shifting.
-    for idx in to_remove.into_iter().rev() {
-        atoms.remove(idx);
-    }
+    // Remove the atoms in a single O(n) pass using `Vec::retain`, which moves
+    // each kept element at most once directly to its final slot (unlike
+    // calling `Vec::remove` in a loop, which shifts all trailing elements on
+    // every removal and is O(n^2)).
+    //
+    // `Vec::retain` visits elements in order (`idx = 0, 1, 2, ...`), and
+    // `to_remove` holds strictly ascending indexes with no duplicates. For
+    // each element, `to_remove.next_if_eq(&idx)` peeks the front of
+    // `to_remove` and consumes it only when it matches `idx`, returning
+    // `Some(_)` to drop that element or `None` to keep it.
+    let mut to_remove = to_remove.into_iter().peekable();
+    let mut idx = 0;
+
+    atoms.retain(|_| {
+        let remove = to_remove.next_if_eq(&idx).is_some();
+        idx += 1;
+        !remove
+    });
 
     Some(atoms)
 }
