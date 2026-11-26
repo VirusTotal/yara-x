@@ -166,6 +166,14 @@ impl AuthenticodeHasher for PE<'_> {
         let mut sum_of_bytes_hashed =
             self.optional_hdr.size_of_headers as usize;
 
+        // Disjoint sections can't add up to more bytes than the file length.
+        // Cap the cumulative hashed bytes to `size_of_headers + file length`
+        // (preserving PEs where headers overlap the first section) so a file
+        // with up to `MAX_PE_SECTIONS` overlapping sections can't force the
+        // digest to re-hash the file up to 96 times.
+        let max_bytes_hashed =
+            sum_of_bytes_hashed.saturating_add(self.data.len());
+
         // Hash each section's data.
         for section in sections {
             let section_start = section.raw_data_offset as usize;
@@ -173,10 +181,14 @@ impl AuthenticodeHasher for PE<'_> {
             let section_end = section_start.saturating_add(section_size);
             let section_bytes = self.data.get(section_start..section_end)?;
 
-            digest.update(section_bytes);
-
             sum_of_bytes_hashed =
                 sum_of_bytes_hashed.checked_add(section_size)?;
+
+            if sum_of_bytes_hashed > max_bytes_hashed {
+                return None;
+            }
+
+            digest.update(section_bytes);
         }
 
         let extra_hash_len = self
