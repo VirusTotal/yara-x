@@ -1,0 +1,20 @@
+type: ET_EXEC
+machine: EM_386
+osabi: OSABI_NONE
+entry_point: 88
+sh_offset: 0
+sh_entry_size: 40
+ph_offset: 52
+ph_entry_size: 32
+number_of_sections: 65280
+number_of_segments: 1
+dynamic_section_entries: 0
+segments:
+  - type: PT_LOAD
+    flags: 0x5  # PF_X | PF_R
+    offset: 84
+    virtual_address: 134512724
+    physical_address: 134512724
+    file_size: 16
+    memory_size: 16
+    alignment: 4096

@@ -139,12 +139,10 @@ impl ElfParser {
         self.result.dynamic_section_entries =
             Some(self.result.dynamic.len().try_into().unwrap());
 
-        // If the number of sections is greater than ELF_SHN_LORESERVE the
-        // header is probably corrupt, exit early.
-        if ehdr.sh_entry_count >= Self::ELF_SHN_LORESERVE {
-            return Ok(mem::take(&mut self.result));
-        }
-
+        // Compute the entry point before checking whether the section table
+        // was parsed: for executables and shared objects it depends only on
+        // the segments, so a missing or bogus section table must not prevent
+        // the entry point from being resolved.
         if let Some(elf_type) = self.result.type_
             && ehdr.entry_point != 0
         {
@@ -300,6 +298,13 @@ impl ElfParser {
     }
 
     fn parse_sections(&self, ehdr: &Ehdr, input: &[u8]) -> Option<Vec<Shdr>> {
+        // If the number of sections is greater than or equal to
+        // ELF_SHN_LORESERVE the header is probably corrupt, skip parsing the
+        // section table.
+        if ehdr.sh_entry_count >= Self::ELF_SHN_LORESERVE {
+            return None;
+        }
+
         let offset = usize::try_from(ehdr.sh_offset).ok()?;
         input.get(offset..).and_then(|sections| {
             count(self.parse_shdr(), ehdr.sh_entry_count as usize)
