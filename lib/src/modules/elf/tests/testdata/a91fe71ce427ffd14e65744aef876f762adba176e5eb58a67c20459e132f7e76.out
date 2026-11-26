@@ -1,0 +1,46 @@
+type: ET_EXEC
+machine: EM_X86_64
+osabi: OSABI_NONE
+entry_point: 288
+sh_offset: 0
+sh_entry_size: 64
+ph_offset: 64
+ph_entry_size: 56
+number_of_sections: 0
+number_of_segments: 4
+symtab_entries: 0
+dynsym_entries: 0
+dynamic_section_entries: 0
+segments:
+  - type: PT_NOTE
+    flags: 0x4  # PF_R
+    offset: 4096
+    virtual_address: 4194304
+    physical_address: 4194304
+    file_size: 512
+    memory_size: 512
+    alignment: 4096
+  - type: PT_LOAD
+    flags: 0x5  # PF_X | PF_R
+    offset: 8192
+    virtual_address: 4194304
+    physical_address: 4194304
+    file_size: 512
+    memory_size: 512
+    alignment: 4096
+  - type: PT_LOAD
+    flags: 0x5  # PF_X | PF_R
+    offset: 0
+    virtual_address: 4194304
+    physical_address: 4194304
+    file_size: 512
+    memory_size: 512
+    alignment: 4096
+  - type: PT_LOAD
+    flags: 0x5  # PF_X | PF_R
+    offset: 0
+    virtual_address: -1
+    physical_address: 0
+    file_size: 0
+    memory_size: 1
+    alignment: 4096

@@ -1,7 +1,6 @@
 type: ET_DYN
 machine: 23
 osabi: OSABI_NONE
-entry_point: 109440
 sh_offset: 0
 sh_entry_size: 64
 ph_offset: 64
