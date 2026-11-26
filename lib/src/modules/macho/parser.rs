@@ -872,35 +872,58 @@ impl<'a> MachOFile<'a> {
         }
     }
 
+    /// Reads a NUL-terminated string (`lc_str`) at `offset` from the start of
+    /// a load command. `command_data` starts immediately after the 8-byte
+    /// `cmd`/`cmdsize` header, so `offset` must be at least 8 and within the
+    /// command.
+    fn read_lc_str(
+        command_data: &'a [u8],
+        offset: u32,
+    ) -> Result<&'a [u8], Err<NomError<'a>>> {
+        let Some(slice) = (offset as usize)
+            .checked_sub(8)
+            .and_then(|rel| command_data.get(rel..))
+        else {
+            return Err(Err::Error(NomError::new(
+                command_data,
+                ErrorKind::Fail,
+            )));
+        };
+
+        let (_, s) = take_till(|b| b == b'\x00')(slice)?;
+        Ok(s)
+    }
+
     /// Parser that parses a LC_LOAD_DYLIB, LC_ID_DYLIB, LC_LOAD_WEAK_DYLIB
     /// or LC_REEXPORT_DYLIB command.
     fn dylib_command(
         &self,
     ) -> impl Parser<&'a [u8], Output = Dylib<'a>, Error = NomError<'a>> + '_
     {
-        map(
-            (
-                u32(self.endianness),        // offset,
-                u32(self.endianness),        // timestamp,
-                u32(self.endianness),        // current_version,
-                u32(self.endianness),        // compatibility_version,
-                take_till(|b| b == b'\x00'), // name
-            ),
-            |(
-                _offset,
-                timestamp,
-                current_version,
-                compatibility_version,
-                name,
-            )| {
+        move |input: &'a [u8]| {
+            let (
+                remainder,
+                (name_offset, timestamp, current_version, compatibility_version),
+            ) = (
+                u32(self.endianness), // name offset
+                u32(self.endianness), // timestamp
+                u32(self.endianness), // current_version
+                u32(self.endianness), // compatibility_version
+            )
+                .parse(input)?;
+
+            let name = Self::read_lc_str(input, name_offset)?;
+
+            Ok((
+                remainder,
                 Dylib {
                     name: BStr::new(name),
                     timestamp,
                     current_version,
                     compatibility_version,
-                }
-            },
-        )
+                },
+            ))
+        }
     }
 
     /// Parser that parses a LC_DYSYMTAB command.
@@ -1577,13 +1600,11 @@ impl<'a> MachOFile<'a> {
         &self,
     ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = NomError<'a>> + '_
     {
-        map(
-            (
-                u32(self.endianness),        // offset,
-                take_till(|b| b == b'\x00'), // command
-            ),
-            |(_offset, command)| command,
-        )
+        move |input: &'a [u8]| {
+            let (remainder, offset) = u32(self.endianness).parse(input)?;
+            let name = Self::read_lc_str(input, offset)?;
+            Ok((remainder, name))
+        }
     }
 
     /// Parser that parses a LC_LINKER_OPTION command.
@@ -1635,13 +1656,11 @@ impl<'a> MachOFile<'a> {
         &self,
     ) -> impl Parser<&'a [u8], Output = &'a [u8], Error = NomError<'a>> + '_
     {
-        map(
-            (
-                u32(self.endianness),
-                take_till(|b| b == b'\x00'), // rpath
-            ),
-            |(_, rpath)| rpath,
-        )
+        move |input: &'a [u8]| {
+            let (remainder, offset) = u32(self.endianness).parse(input)?;
+            let path = Self::read_lc_str(input, offset)?;
+            Ok((remainder, path))
+        }
     }
 
     /// Parser that parses a LC_BUILD_VERSION command.

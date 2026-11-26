@@ -1,0 +1,21 @@
+magic: 0xcffaedfe
+cputype: 0x1000007
+cpusubtype: 0x3
+filetype: 2
+ncmds: 4
+sizeofcmds: 144
+flags: 0x0
+reserved: 0
+number_of_segments: 0
+dynamic_linker: "/real"
+dylibs:
+  - name: "/real"
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "/use_real"
+    timestamp: 0  # 1970-01-01 00:00:00 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+rpaths:
+  - "/real"
