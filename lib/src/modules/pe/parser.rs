@@ -2212,9 +2212,17 @@ impl<'a> PE<'a> {
             }
         }
 
-        let names = self
-            .parse_at_rva(exports.address_of_names, count(le_u32, num_names))
-            .unwrap_or_default();
+        // `number_of_names` can be larger than the number of entries actually
+        // present in the file (e.g. when the array sits at the end of a
+        // section that is larger in memory than on disk, or the file is
+        // truncated). Read the entries that are available instead of
+        // discarding all of them.
+        let names: Vec<u32> = iterator(
+            self.data_at_rva(exports.address_of_names).unwrap_or_default(),
+            le_u32::<&[u8], Error>,
+        )
+        .take(num_names)
+        .collect();
 
         let name_ordinals = self
             .data_at_rva(exports.address_of_name_ordinals)

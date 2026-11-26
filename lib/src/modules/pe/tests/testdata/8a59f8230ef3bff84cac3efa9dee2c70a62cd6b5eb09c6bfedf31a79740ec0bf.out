@@ -1,0 +1,110 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 6
+    minor: 0
+subsystem_version:
+    major: 6
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 14
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 0x2022  # EXECUTABLE_IMAGE | LARGE_ADDRESS_AWARE | DLL
+dll_characteristics: 0x0
+timestamp: 0  # 1970-01-01 00:00:00 UTC
+image_base: 0x180000000
+checksum: 0
+base_of_code: 0x1000
+entry_point: 0x0
+entry_point_raw: 0x0
+dll_name: "implant.dll"
+export_timestamp: 0  # 1970-01-01 00:00:00 UTC
+section_alignment: 0x1000
+file_alignment: 0x200
+loader_flags: 0x0
+size_of_optional_header: 0xf0
+size_of_code: 0x200
+size_of_initialized_data: 0x0
+size_of_uninitialized_data: 0x0
+size_of_image: 0x2000
+size_of_headers: 0x400
+size_of_stack_reserve: 0x100000
+size_of_stack_commit: 0x1000
+size_of_heap_reserve: 0x100000
+size_of_heap_commit: 0x1000
+pointer_to_symbol_table: 0x0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 1
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 0
+number_of_version_infos: 0
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 2
+number_of_signatures: 0
+sections:
+  - name: ".edata"
+    full_name: ".edata"
+    characteristics: 0x60000020  # SECTION_MEM_READ | SECTION_MEM_WRITE | SECTION_SCALE_INDEX
+    raw_data_size: 0x200
+    raw_data_offset: 0x400
+    virtual_address: 0x1000
+    virtual_size: 0x1000
+    pointer_to_relocations: 0x0
+    pointer_to_line_numbers: 0x0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0x1000
+    size: 0x100
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+  - virtual_address: 0x0
+    size: 0x0
+export_details:
+  - name: "CPlApplet"
+    ordinal: 1
+    rva: 0x1180
+    offset: 0x580
+  - name: "DllRegisterServer"
+    ordinal: 2
+    rva: 0x1190
+    offset: 0x590
+is_signed: false
+overlay:
+    offset: 0x0
+    size: 0x0
