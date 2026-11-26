@@ -630,6 +630,12 @@ impl<'a> ParWalker<'a> {
                 }));
             }
 
+            // Each worker thread owns a clone of the receiver. Drop the
+            // original so the channel disconnects once all workers exit (e.g.
+            // on timeout); otherwise the walker thread blocks forever in
+            // `send` once the bounded channel fills up.
+            drop(paths_recv);
+
             // Span a thread that walks the directory and puts file paths in
             // the channel.
             threads.push(s.spawn(move |_| {
@@ -654,7 +660,10 @@ impl<'a> ParWalker<'a> {
                     },
                 );
 
+                // A `SendError` means all worker threads have already exited
+                // and aborted the walk; don't report it to the error callback.
                 if let Err(err) = res
+                    && !err.is::<SendError<PathBuf>>()
                     && error(err, &msg_send).is_err()
                 {
                     let _ = msg_send.send(Message::Abort);

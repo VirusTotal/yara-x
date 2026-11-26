@@ -819,6 +819,46 @@ fn count_omits_non_matching_files() {
         .stdout("");
 }
 
+// When the timeout expires all worker threads exit, and the walker thread
+// must stop instead of blocking forever trying to enqueue more paths into a
+// full bounded channel. The file count must exceed the thread count plus the
+// bounded channel capacity (128).
+#[test]
+fn timeout_with_pending_files() {
+    let temp_dir = TempDir::new().unwrap();
+    let rules_file = temp_dir.child("rules.yar");
+    let scan_dir = temp_dir.child("files");
+
+    rules_file
+        .write_str(
+            r#"rule slow {
+                condition:
+                    for all i in (0..9223372036854775806) : (i >= 0)
+            }"#,
+        )
+        .unwrap();
+
+    for i in 0..200 {
+        scan_dir.child(format!("{i}.file")).write_str("foo").unwrap();
+    }
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--timeout=1")
+        .arg("--threads=2")
+        .arg(rules_file.path())
+        .arg(scan_dir.path())
+        .timeout(std::time::Duration::from_secs(60))
+        .assert()
+        .success()
+        .stderr(
+            predicate::str::contains("timeout").and(
+                predicate::str::contains("sending on a disconnected channel")
+                    .not(),
+            ),
+        );
+}
+
 // Regression test for https://github.com/VirusTotal/yara-x/issues/785.
 //
 // When `yr scan` runs in an interactive terminal (both `stdout` and `stderr`
