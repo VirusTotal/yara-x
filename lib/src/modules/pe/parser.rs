@@ -1628,8 +1628,8 @@ impl<'a> PE<'a> {
             let signatures = authenticode_parser
                 .parse(signature_data, self)
                 .map_err(|_| {
-                    Err::Error(Error::new(signature_data, ErrorKind::Fail))
-                })?;
+                Err::Error(Error::new(signature_data, ErrorKind::Fail))
+            })?;
 
             // The next WIN_CERTIFICATE is aligned to the next 8-bytes boundary.
             let (remainder, _) = take(Self::round_up::<8, _>(length))(input)?;
@@ -1972,17 +1972,6 @@ impl<'a> PE<'a> {
                     thunk & 0x8000000000000000 != 0
                 };
 
-                // Check that thunk doesn't exceed the maximum possible value.
-                // The maximum possible value occurs when the most significant
-                // bit is set (import by ordinal) and the ordinal number is
-                // 65535, which is the maximum possible ordinal.
-                let max_thunk =
-                    if is_32_bits { 0x8000ffff } else { 0x800000000000ffff };
-
-                if thunk > max_thunk {
-                    continue;
-                }
-
                 let mut func = ImportedFunc {
                     rva: descriptor.import_address_table.saturating_add(
                         (i * if is_32_bits { 4 } else { 8 }) as u32,
@@ -1991,6 +1980,11 @@ impl<'a> PE<'a> {
                 };
 
                 if import_by_ordinal {
+                    // The ordinal number is in the lower 16 bits. The bits
+                    // between the ordinal number and the most significant bit
+                    // are reserved and should be zero, but the Windows loader
+                    // ignores them, so thunks where some of those bits are set
+                    // must not be discarded.
                     let ordinal = (thunk & 0xffff) as u16;
                     func.ordinal = Some(ordinal);
                     func.name = ord_to_name(import_dll, ordinal);
