@@ -1,6 +1,10 @@
 name: Release
-permissions:
-  contents: read
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
   create:
     tags:
@@ -10,6 +14,8 @@ on:
 jobs:
   build:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: read
     env:
       CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
@@ -109,6 +115,8 @@ jobs:
 
   build-py:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -227,29 +235,116 @@ jobs:
     needs: [ build ]
     runs-on: ubuntu-latest
     permissions:
-      # Allow this job to create releases.
-      contents: write
+      contents: read
+      id-token: write  # Required for Workload Identity Federation with OSS Exit Gate
 
     steps:
     - name: Download artifacts
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         pattern: yr-*
+        path: release-artifacts
 
-    - name: ls
+    - name: Stage flat release assets
       shell: bash
-      run: ls
+      run: |
+        set -euo pipefail
+        stage_dir="${RUNNER_TEMP}/yara-x-assets"
+        rm -rf "${stage_dir}"
+        mkdir -p "${stage_dir}"
+        shopt -s nullglob
+        files=(release-artifacts/yr-*/yara-x-*)
+        if [ "${#files[@]}" -eq 0 ]; then
+          echo "ERROR: no yara-x release archives found under release-artifacts/yr-*/" >&2
+          exit 1
+        fi
+        cp -p "${files[@]}" "${stage_dir}/"
+        ls -la "${stage_dir}"
 
-    - name: Release
-      uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+    - name: Authenticate to OSS Exit Gate via WIF
+      uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
       with:
-        draft: true
-        files: yr-*/yara-x-*
+        workload_identity_provider: "projects/305452601764/locations/global/workloadIdentityPools/builders/providers/github"
+
+    - name: Set up gcloud CLI
+      uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+    - name: Upload assets to Artifact Registry and trigger release
+      shell: bash
+      env:
+        TAG_NAME: ${{ github.ref_name }}
+        RUN_ID: ${{ github.run_id }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+        AR_PROJECT: oss-exit-gate-prod
+        AR_LOCATION: us
+        AR_REPO: yara-x--githubreleases
+        PACKAGE_NAME: yara-x
+        MANIFEST_BUCKET: gs://oss-exit-gate-prod-projects-bucket/yara-x/githubreleases/manifests
+      run: |
+        set -euo pipefail
+        umask 077
+        stage_dir="${RUNNER_TEMP}/yara-x-assets"
+        manifest_path="${RUNNER_TEMP}/manifest-${RUN_ID}-${RUN_ATTEMPT}.json"
+        trap 'rm -f "${manifest_path}"' EXIT
+
+        release_version="${TAG_NAME#v}"
+        if [ -z "${release_version}" ]; then
+          echo "ERROR: empty release version derived from tag '${TAG_NAME}'" >&2
+          exit 1
+        fi
+
+        # Remove only the colliding version (if a prior run failed/retried).
+        gcloud artifacts versions delete "${release_version}" \
+          --project="${AR_PROJECT}" \
+          --location="${AR_LOCATION}" \
+          --repository="${AR_REPO}" \
+          --package="${PACKAGE_NAME}" \
+          --quiet || true
+
+        gcloud artifacts generic upload \
+          --project="${AR_PROJECT}" \
+          --location="${AR_LOCATION}" \
+          --repository="${AR_REPO}" \
+          --package="${PACKAGE_NAME}" \
+          --version="${release_version}" \
+          --source-directory="${stage_dir}"
+
+        # Matches prior workflow draft behavior (draft: true).
+        # Note: is_latest cannot be true when is_draft is true.
+        jq -n \
+          --arg pkg "${PACKAGE_NAME}" \
+          --arg ver "${release_version}" \
+          --arg tag "${TAG_NAME}" \
+          '{
+            publish_all: false,
+            publishing_groups: [
+              {
+                packages: [
+                  { name: $pkg, version: $ver }
+                ]
+              }
+            ],
+            registry_config: {
+              github_releases: {
+                name: $tag,
+                tag: $tag,
+                is_draft: true,
+                is_prerelease: false,
+                is_latest: false
+              }
+            }
+          }' > "${manifest_path}"
+
+        gcloud storage cp --if-generation-match=0 \
+          "${manifest_path}" \
+          "${MANIFEST_BUCKET}/manifest-${RUN_ID}-${RUN_ATTEMPT}.json"
 
   publish-crate:
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     needs: [ publish ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
     - name: Checkout sources
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -282,6 +377,7 @@ jobs:
       name: pypi
       url: https://pypi.org/p/yara-x
     permissions:
+      contents: read
       id-token: write
     steps:
     - name: Download artifacts
