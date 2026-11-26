@@ -115,7 +115,7 @@ pub fn exec_check(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
                 .unwrap();
 
             let src = SourceCode::from(src.as_slice())
-                .with_origin(file_path.as_os_str().to_str().unwrap());
+                .with_origin(file_path.to_string_lossy());
 
             let mut lines = Vec::new();
             let mut compiler = yara_x::Compiler::new();

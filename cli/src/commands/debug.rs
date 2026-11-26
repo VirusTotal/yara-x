@@ -163,7 +163,7 @@ fn exec_wasm(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let src = SourceCode::from(src.as_slice())
-        .with_origin(rules_path.as_os_str().to_str().unwrap());
+        .with_origin(rules_path.to_string_lossy());
 
     rules_path.set_extension("wasm");
 
@@ -242,7 +242,7 @@ fn exec_atoms(args: &ArgMatches, config: &Config) -> anyhow::Result<()> {
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let src = SourceCode::from(src.as_slice())
-        .with_origin(rules_path.as_os_str().to_str().unwrap());
+        .with_origin(rules_path.to_string_lossy());
 
     let mut compiler = create_compiler(None, args, config)?;
 

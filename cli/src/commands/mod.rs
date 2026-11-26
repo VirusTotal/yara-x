@@ -299,7 +299,7 @@ where
                 })?;
 
                 let src = SourceCode::from(src.as_slice())
-                    .with_origin(file_path.as_os_str().to_str().unwrap());
+                    .with_origin(file_path.to_string_lossy());
 
                 if args.get_flag("path-as-namespace") {
                     compiler

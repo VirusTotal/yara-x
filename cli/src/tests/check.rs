@@ -332,3 +332,26 @@ fn check_metadata_raw_byte_and_invalid_regexp() {
         .code(1)
         .stderr(predicate::str::contains("error: regex parse error"));
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn check_non_utf8_path() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    let temp_dir = TempDir::new().unwrap();
+
+    temp_dir
+        .child(OsStr::from_bytes(b"foo_\xff.yar"))
+        .write_str("rule foo { strings: $foo = \"foo\" condition: $foo }")
+        .unwrap();
+
+    // Rule files with names that are not valid UTF-8 must be checked
+    // without panicking.
+    Command::new(cargo_bin!("yr"))
+        .arg("check")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[ PASS ]"));
+}

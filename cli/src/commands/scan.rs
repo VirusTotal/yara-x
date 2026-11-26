@@ -944,7 +944,10 @@ mod output_handler {
             scan_results: &mut dyn Iterator<Item = Rule>,
             output: &Sender<Message>,
         ) -> bool {
-            let path = file_path.to_str().unwrap();
+            // Paths are not guaranteed to be valid UTF-8, use a lossy
+            // conversion instead of panicking when they are not.
+            let path = file_path.to_string_lossy();
+            let path = path.as_ref();
 
             if self.output_options.count_only {
                 let count = scan_results.count();
@@ -1002,6 +1005,8 @@ mod output_handler {
     struct MatchJson {
         rule: String,
         file: String,
+        #[serde(skip)]
+        raw_path: PathBuf,
         #[serde(skip_serializing_if = "Option::is_none")]
         meta: Option<HashMap<String, serde_json::Value>>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1091,12 +1096,11 @@ mod output_handler {
                 return false;
             }
 
-            let path = dunce::canonicalize(file_path)
-                .ok()
-                .as_ref()
-                .and_then(|absolute| absolute.to_str())
-                .map(|s| s.to_string())
-                .unwrap_or_default();
+            // Fall back to the scanned path if canonicalize fails, and convert
+            // lossily so non-UTF-8 paths are reported instead of becoming "".
+            let canonical_path = dunce::canonicalize(file_path)
+                .unwrap_or_else(|_| file_path.to_path_buf());
+            let path = canonical_path.to_string_lossy().into_owned();
 
             // prepare the increment *outside* the critical section
             let matching_rules = matching_rules.map(|rule| {
@@ -1147,6 +1151,7 @@ mod output_handler {
                     rule: rule.identifier().to_string(),
                     meta,
                     file,
+                    raw_path: canonical_path.clone(),
                     tags,
                     strings,
                 }
@@ -1169,14 +1174,23 @@ mod output_handler {
 
             let rendered_json = match self.output_options.count_only {
                 true => {
+                    // Group by the original raw path so distinct non-UTF-8
+                    // file names whose lossy UTF-8 strings collide are not
+                    // merged into a single entry.
                     let json_output = matches
                         .iter()
                         .fold(HashMap::new(), |mut acc, it| {
-                            *acc.entry(&it.file).or_insert(0) += 1;
+                            let entry = acc
+                                .entry(&it.raw_path)
+                                .or_insert((&it.file, 0));
+                            entry.1 += 1;
                             acc
                         })
                         .into_iter()
-                        .map(|(path, count)| JsonCountOutput { path, count })
+                        .map(|(_, (path, count))| JsonCountOutput {
+                            path,
+                            count,
+                        })
                         .collect::<Vec<_>>();
 
                     serde_json::to_string_pretty(&json_output)

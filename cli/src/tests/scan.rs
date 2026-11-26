@@ -665,6 +665,131 @@ fn format_ndjson_omits_non_matching_files() {
         .stdout("");
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn format_ndjson_non_utf8_path() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    let temp_dir = TempDir::new().unwrap();
+    let matching_file = temp_dir.child(OsStr::from_bytes(b"foo_\xff.file"));
+    let non_matching_file =
+        temp_dir.child(OsStr::from_bytes(b"bar_\xff.file"));
+
+    matching_file.write_str("foo").unwrap();
+    non_matching_file.write_str("bar").unwrap();
+
+    // File names that are not valid UTF-8 must not abort the scan; invalid
+    // byte sequences are replaced with U+FFFD in the output.
+    let expected_path = matching_file.path().to_string_lossy();
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=ndjson")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(format!(
+            "{{\"path\":{},\"rules\":[{{\"identifier\":\"foo\"}}]}}\n",
+            serde_json::to_string(expected_path.as_ref()).unwrap()
+        ));
+
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=ndjson")
+        .arg("--count")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(format!(
+            "{{\"path\":{},\"count\":1}}\n",
+            serde_json::to_string(expected_path.as_ref()).unwrap()
+        ));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn format_json_non_utf8_path() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    let temp_dir = TempDir::new().unwrap();
+    let file_fe = temp_dir.child(OsStr::from_bytes(b"odd_\xfe.file"));
+    let file_ff = temp_dir.child(OsStr::from_bytes(b"odd_\xff.file"));
+
+    file_fe.write_str("foo").unwrap();
+    file_ff.write_str("foo").unwrap();
+
+    let expected_path = dunce::canonicalize(file_fe.path())
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+
+    // Matches must report the lossy path instead of "".
+    let output = Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=json")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    let matches = json["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 2);
+    assert!(matches.iter().all(|m| m["file"] == expected_path));
+
+    // With --count, distinct files whose lossy names collide must not be
+    // merged into a single entry.
+    let output = Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg("--output-format=json")
+        .arg("--count")
+        .arg("src/tests/testdata/foo.yar")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let counts: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    let entries = counts.as_array().unwrap();
+    assert_eq!(entries.len(), 2);
+    assert!(
+        entries.iter().all(|e| e["path"] == expected_path && e["count"] == 1)
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn rules_non_utf8_path() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    let temp_dir = TempDir::new().unwrap();
+
+    temp_dir
+        .child(OsStr::from_bytes(b"foo_\xff.yar"))
+        .write_str("rule foo { strings: $foo = \"foo\" condition: $foo }")
+        .unwrap();
+
+    // Rule files with names that are not valid UTF-8 must be compiled
+    // without panicking.
+    Command::new(cargo_bin!("yr"))
+        .arg("scan")
+        .arg(temp_dir.path())
+        .arg("src/tests/testdata/dummy.file")
+        .assert()
+        .success()
+        .stdout("foo src/tests/testdata/dummy.file\n");
+}
+
 #[test]
 fn count_omits_non_matching_files() {
     let temp_dir = TempDir::new().unwrap();
