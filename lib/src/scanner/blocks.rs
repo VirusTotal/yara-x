@@ -214,6 +214,11 @@ impl<'r> Scanner<'r> {
 
         self.needs_reset = true;
 
+        // Take the snippets out of the scanner before evaluating conditions so
+        // that if evaluation fails (e.g. due to a timeout), they are dropped
+        // immediately rather than retained and leaked into the next scan.
+        let snippets = mem::take(&mut self.snippets);
+
         let ctx = self.ctx.get_mut();
 
         // In block scanning mode patterns are searched as each block is
@@ -224,9 +229,8 @@ impl<'r> Scanner<'r> {
         ctx.set_pattern_search_done(true);
         ctx.eval_conditions()?;
 
-        ctx.scan_state = ScanState::Finished(DataSnippets::MultiBlock(
-            mem::take(&mut self.snippets),
-        ));
+        ctx.scan_state =
+            ScanState::Finished(DataSnippets::MultiBlock(snippets));
 
         Ok(ScanResults::new(ctx))
     }
@@ -547,6 +551,59 @@ mod tests {
         scanner.set_timeout(Duration::from_secs(1));
         let err = scanner.finish().unwrap_err();
         assert_eq!(err.to_string(), "timeout");
+    }
+
+    #[test]
+    fn block_scanner_reuse_after_timeout() {
+        let rules = compile(
+            r#"
+            rule test { strings: $a = /Lorem [a-z]{5}/ condition: $a }
+            rule slow {
+                strings:
+                    $a = "slow"
+                condition:
+                    for any i in (0..#a * 1000000000) : (
+                         uint8(i) == 0xCC
+                    )
+            }"#,
+        )
+        .unwrap();
+
+        let mut scanner = Scanner::new(&rules);
+        scanner.set_timeout(Duration::from_secs(1));
+        scanner.match_context_size(4);
+
+        // The first scan times out while evaluating conditions; its snippets
+        // must not leak into subsequent scans.
+        let err = scanner
+            .scan(0, b"AAAALorem ipsumBBBB slow")
+            .unwrap()
+            .finish()
+            .unwrap_err();
+
+        assert_eq!(err.to_string(), "timeout");
+
+        // The second scan matches at the same offset and with context; both
+        // `data()` and `data_with_context()` must return the second stream's
+        // bytes, not those from the timed-out scan.
+        let results =
+            scanner.scan(0, b"XXXXLorem dolorYYYY").unwrap().finish().unwrap();
+
+        assert_eq!(results.matching_rules().len(), 1);
+
+        let rule = results.matching_rules().next().unwrap();
+        let pattern = rule.patterns().next().unwrap();
+        let mut matches = pattern.matches();
+
+        let match_ = matches.next().unwrap();
+        assert_eq!(match_.range(), 4..15);
+        assert_eq!(match_.data(), b"Lorem dolor".as_slice());
+        assert_eq!(
+            match_.data_with_context(),
+            (b"XXXXLorem dolorYYYY".as_slice(), 4..15)
+        );
+
+        assert!(matches.next().is_none());
     }
 
     #[test]
