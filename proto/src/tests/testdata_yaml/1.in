@@ -54,6 +54,27 @@ repeated_msg {
   str: "nel-test\xc2\x85printable"
 }
 repeated_msg {
+  str: "ls-test\xe2\x80\xa8ps-test\xe2\x80\xa9printable"
+}
+repeated_msg {
+  str: "lone-cr-multiline\n\rkey: value"
+}
+repeated_msg {
+  str: "cr-crlf-multiline\r\r\nkey: value"
+}
+repeated_msg {
+  str: "trailing-cr-multiline\nvalue\r"
+}
+repeated_msg {
+  str: "nel-multiline\n\xc2\x85key: value"
+}
+repeated_msg {
+  str: "ls-multiline\n\xe2\x80\xa8key: value"
+}
+repeated_msg {
+  str: "ps-multiline\n\xe2\x80\xa9key: value"
+}
+repeated_msg {
   str: "non-char\xef\xbf\xbe"
 }
 nested_msg {

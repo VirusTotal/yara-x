@@ -202,6 +202,8 @@ impl<W: Write> Serializer<W> {
                 // Non-control chars that still require escaping in
                 // YAML double-quoted scalars
                 || matches!(c, '\'' | '"' | '\\')
+                // Printable chars that YAML 1.1 parsers treat as line breaks
+                || matches!(c, '\u{85}' | '\u{2028}' | '\u{2029}')
         }) {
             let mut result = String::with_capacity(s.len());
             for c in s.chars() {
@@ -212,6 +214,13 @@ impl<W: Write> Serializer<W> {
                     '\'' => result.push_str("\\\'"),
                     '"' => result.push_str("\\\""),
                     '\\' => result.push_str(r"\\"),
+                    // NEL (U+0085), LS (U+2028) and PS (U+2029) are printable,
+                    // but YAML 1.1 parsers treat them as line breaks, which
+                    // are folded inside a double-quoted scalar. Use the named
+                    // escapes, valid in both YAML 1.1 and 1.2.
+                    '\u{85}' => result.push_str(r"\N"),
+                    '\u{2028}' => result.push_str(r"\L"),
+                    '\u{2029}' => result.push_str(r"\P"),
                     // Remaining C0 controls (U+0000–U+001F: NUL–US) not
                     // covered by the named arms above, DEL (U+007F), and
                     // C1 controls (U+0080–U+009F, excl. NEL U+0085).
@@ -368,7 +377,21 @@ impl<W: Write> Serializer<W> {
                     Self::is_yaml_control(c)
                         && !matches!(c, '\t' | '\n' | '\r')
                 });
-                if v.contains('\n') && !has_other_controls {
+                // Literal block scalars split on LF (stripping a preceding CR)
+                // and indent each resulting line. Any other line break — a lone
+                // CR not followed by LF, or NEL (U+0085), LS (U+2028), and PS
+                // (U+2029), which YAML 1.1 parsers treat as line breaks — would
+                // start an unindented line, ending the scalar and letting the
+                // rest of the string be parsed as YAML structure. Fall back to
+                // a double-quoted scalar for those strings too.
+                let has_other_breaks = v.ends_with('\r')
+                    || v.split('\n').any(|line| {
+                        line.strip_suffix('\r')
+                            .unwrap_or(line)
+                            .contains(['\r', '\u{85}', '\u{2028}', '\u{2029}'])
+                    });
+                if v.contains('\n') && !has_other_controls && !has_other_breaks
+                {
                     write!(self.output, "{}", "|".paint(self.colors.string))?;
                     for line in v.split('\n') {
                         self.newline()?;

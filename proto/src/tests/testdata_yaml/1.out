@@ -28,7 +28,14 @@ repeated_msg:
   - str: "tab-only\tworld"
   - str: "c1-ctrl\x80test"
   - str: "c1-ctrl2\x9ftest"
-  - str: "nel-testprintable"
+  - str: "nel-test\Nprintable"
+  - str: "ls-test\Lps-test\Pprintable"
+  - str: "lone-cr-multiline\n\rkey: value"
+  - str: "cr-crlf-multiline\r\r\nkey: value"
+  - str: "trailing-cr-multiline\nvalue\r"
+  - str: "nel-multiline\n\Nkey: value"
+  - str: "ls-multiline\n\Lkey: value"
+  - str: "ps-multiline\n\Pkey: value"
   - str: "non-char\ufffe"
 nested_msg:
     int32_dec: 1234
