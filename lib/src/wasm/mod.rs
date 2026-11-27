@@ -706,6 +706,18 @@ macro_rules! impl_wasm_exported_fn {
                         )*
 
                         let result = (self.target_fn)(&mut caller, $($args),*);
+
+                        // The WASM runtime checks the epoch deadline only at
+                        // function entries and loop headers, not when the
+                        // WASM code calls a host function. A condition can be
+                        // a long sequence of calls to expensive functions
+                        // without any loop in between, so the deadline must
+                        // also be checked here. Otherwise, such a condition
+                        // keeps running long after the timeout has expired.
+                        if caller.data().deadline_reached() {
+                            return Err(ScanError::Timeout.into());
+                        }
+
                         let result = result.values(caller.data_mut());
 
                         let result_slice = result.as_slice();

@@ -507,6 +507,12 @@ impl ScanContext<'_, '_> {
         self
     }
 
+    /// Returns true if the deadline for the current scan has been reached.
+    #[inline]
+    pub(crate) fn deadline_reached(&self) -> bool {
+        HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline
+    }
+
     /// Invokes the main function, which evaluates the rules' conditions. It
     /// calls ScanContext::search_for_patterns (which does the Aho-Corasick
     /// scanning) only if necessary.

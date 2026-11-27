@@ -1452,6 +1452,36 @@ fn test_teddy_scan_timeout() {
     assert_eq!(err.to_string(), "timeout");
 }
 
+#[test]
+#[cfg(feature = "hash-module")]
+fn test_host_calls_scan_timeout() {
+    use std::fmt::Write;
+    use std::time::Duration;
+
+    // Build a rule whose condition is a long sequence of calls to `hash.md5`
+    // without any loop. Each call hashes a different range of the scanned
+    // data, so that results are not retrieved from the module's cache and
+    // every call is expensive. The WASM code produced for this condition
+    // doesn't have any loop header where the WASM runtime could check the
+    // epoch deadline, therefore the timeout must be detected when `hash.md5`
+    // returns.
+    let mut rule = String::from("import \"hash\"\nrule test { condition:\n");
+    for i in 0..500 {
+        writeln!(rule, r#"hash.md5({i}, filesize - {i}) != "" and"#).unwrap();
+    }
+    rule.push_str("true }");
+
+    let rules = crate::compile(rule.as_str()).unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.set_timeout(Duration::from_secs(1));
+
+    let data = vec![b'a'; 8_000_000];
+
+    let err = scanner.scan(&data).unwrap_err();
+    assert_eq!(err.to_string(), "timeout");
+}
+
 #[cfg(feature = "test_proto2-module")]
 #[test]
 fn runtime_string_from_large_slice() {
