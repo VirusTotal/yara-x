@@ -458,6 +458,15 @@ impl<'a> Dotnet<'a> {
             count(map(le_u32, |v| v as usize), num_tables as usize)
                 .parse(remainder)?;
 
+        // Bit 0x40 of `heap_sizes` is not documented in ECMA-335, but the
+        // .NET runtime honors it (`EXTRA_DATA` in CoreCLR). When set, the
+        // row counts are followed by 4 bytes of extra data that precede the
+        // tables. Some obfuscators set this bit, and not skipping those 4
+        // bytes causes all the tables to be parsed at the wrong offset.
+        if heap_sizes & 0x40 != 0 {
+            (remainder, _) = le_u32(remainder)?;
+        }
+
         let mut num_rows_per_present_table =
             num_rows_per_present_table.into_iter();
 
