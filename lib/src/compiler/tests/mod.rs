@@ -1057,6 +1057,8 @@ fn banned_modules() {
                 r#"
             import "test_proto2"
             rule test { condition: test_proto2.int32_zero == 0}
+            rule test_dep { condition: test }
+            rule always_true { condition: true }
             "#,
             )
             .expect_err("expected error")
@@ -1070,8 +1072,41 @@ fn banned_modules() {
 
     // The only error should be the error about the use of a banned module,
     // the condition `test_proto2.int32_zero == 0` should not produce any
-    // error.
+    // error, nor the rule that depends on rule `test`.
     assert_eq!(compiler.errors().len(), 1);
+
+    // However, the rules that depend on the banned module are ignored due
+    // to the error produced by the import statement.
+    let ignored: Vec<_> = compiler.ignored_rules().collect();
+    assert_eq!(
+        ignored,
+        vec![
+            ("test", IgnoredRuleReason::CompileError(&compiler.errors()[0])),
+            (
+                "test_dep",
+                IgnoredRuleReason::CompileError(&compiler.errors()[0])
+            ),
+        ]
+    );
+
+    // The failed import must not make the banned module available to rules
+    // added later to the same namespace.
+    assert_eq!(
+        compiler
+            .add_source(
+                r#"rule test { condition: test_proto2.int32_zero == 0}"#
+            )
+            .expect_err("expected error")
+            .code(),
+        "E009"
+    );
+
+    let rules = compiler.build();
+
+    // Only the rule that doesn't depend on the banned module is compiled,
+    // and the banned module is not imported by the rules.
+    assert_eq!(rules.iter().len(), 1);
+    assert_eq!(rules.imports().count(), 0);
 }
 
 #[test]

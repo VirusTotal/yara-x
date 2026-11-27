@@ -1490,6 +1490,12 @@ impl Compiler<'_> {
     {
         let mut already_imported = FxHashMap::default();
 
+        // Identifiers that are not defined because this source file imports
+        // a banned module: the module itself, and the rules that were ignored
+        // for depending on it. Each identifier is associated to the index in
+        // `self.errors` of the error produced by the `import` statement.
+        let mut banned_identifiers = HashMap::new();
+
         for item in items {
             match item {
                 ast::Item::Import(import) => {
@@ -1519,6 +1525,11 @@ impl Compiler<'_> {
                     // Import the module. This updates `self.root_struct` if
                     // necessary.
                     if let Err(err) = self.c_import(import) {
+                        if self.banned_modules.contains_key(import.module_name)
+                        {
+                            banned_identifiers
+                                .insert(import.module_name, self.errors.len());
+                        }
                         self.errors.push(err);
                     }
                 }
@@ -1595,6 +1606,31 @@ impl Compiler<'_> {
                 }
                 ast::Item::Rule(rule) => {
                     if let Err(err) = self.c_rule(rule) {
+                        // If the error is due to an unknown identifier, and
+                        // the identifier is a banned module imported by this
+                        // source file, or a rule that depends on it, the
+                        // rule is ignored without producing additional
+                        // errors. The error that matters is the one already
+                        // produced by the `import` statement.
+                        let banned_import_err = match &err {
+                            CompileError::UnknownIdentifier(unknown) => {
+                                banned_identifiers
+                                    .get(unknown.identifier())
+                                    .copied()
+                            }
+                            _ => None,
+                        };
+                        if let Some(err_idx) = banned_import_err {
+                            banned_identifiers
+                                .insert(rule.identifier.name, err_idx);
+                            self.ignored_rules.push((
+                                rule.identifier.name.to_string(),
+                                IgnoredRuleReasonInternal::CompileError(
+                                    err_idx,
+                                ),
+                            ));
+                            continue;
+                        }
                         self.ignored_rules.push((
                             rule.identifier.name.to_string(),
                             IgnoredRuleReasonInternal::CompileError(
@@ -2159,6 +2195,24 @@ impl Compiler<'_> {
         // Yes, module exists.
         let module = module.unwrap();
 
+        // Is the module banned? If yes, produce an error. This check is done
+        // before adding the module to `self.root_struct`,
+        // `self.imported_modules` and the symbol table, because a banned
+        // module must not be usable by any rule, nor appear as imported in
+        // the compiled rules. `c_items` takes care of not producing
+        // additional errors due to undefined identifiers when the banned
+        // module is used in some rule condition.
+        if let Some((error_title, error_msg)) =
+            self.banned_modules.get(module_name)
+        {
+            return Err(CustomError::build(
+                &self.report_builder,
+                error_title.clone(),
+                error_msg.clone(),
+                self.report_builder.span_to_code_loc(import.span()),
+            ));
+        }
+
         // If the module has not been added to `self.root_struct` and
         // `self.imported_modules`, do it.
         if !self.root_struct.has_field(module_name) {
@@ -2191,21 +2245,6 @@ impl Compiler<'_> {
                 module_name,
                 self.root_struct.lookup(module_name).unwrap(),
             );
-        }
-
-        // Is the module banned? If yes, produce an error. Notice however that
-        // this check is done after the module has been added to the symbol
-        // table because we don't want additional errors due to undefined
-        // identifiers when the banned module is used in some rule condition.
-        if let Some((error_title, error_msg)) =
-            self.banned_modules.get(module_name)
-        {
-            return Err(CustomError::build(
-                &self.report_builder,
-                error_title.clone(),
-                error_msg.clone(),
-                self.report_builder.span_to_code_loc(import.span()),
-            ));
         }
 
         Ok(())
