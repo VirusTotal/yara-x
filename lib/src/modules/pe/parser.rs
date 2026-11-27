@@ -2226,15 +2226,19 @@ impl<'a> PE<'a> {
 
         // Create a vector with one item per exported function. Items in the
         // array initially have function RVA and ordinal only.
+        //
+        // The ordinal base is an arbitrary value taken from the file, so
+        // `base + index` may not fit in 32 bits. In such cases the ordinal
+        // wraps around, but the function is not discarded, as it can still
+        // be exported by name. Names are associated to functions through
+        // their index in `address_of_functions`, regardless of the base.
         let mut exported_funcs = Vec::with_capacity(num_exports);
         for (i, rva) in func_rvas.take(num_exports).enumerate() {
-            if let Some(ordinal) = exports.base.checked_add(i as u32) {
-                exported_funcs.push(ExportedFunc {
-                    rva,
-                    ordinal,
-                    ..Default::default()
-                });
-            }
+            exported_funcs.push(ExportedFunc {
+                rva,
+                ordinal: exports.base.wrapping_add(i as u32),
+                ..Default::default()
+            });
         }
 
         // `number_of_names` can be larger than the number of entries actually
@@ -2270,9 +2274,10 @@ impl<'a> PE<'a> {
 
         // Set the name field for each exported function, if they are exported
         // by name.
-        for f in exported_funcs.iter_mut() {
-            // Find the index of the ordinal.
-            if let Ok(ordinal) = u16::try_from(f.ordinal - exports.base)
+        for (i, f) in exported_funcs.iter_mut().enumerate() {
+            // Find the index of the ordinal. The ordinal relative to
+            // `exports.base` is the function's index in `exported_funcs`.
+            if let Ok(ordinal) = u16::try_from(i)
                 && let Some(idx) = name_index_by_ordinal.get(&ordinal)
                 && let Some(name_rva) = names.get(*idx)
             {
