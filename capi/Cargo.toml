@@ -88,6 +88,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 serde_json = { workspace = true }
+yara-x-proto = { workspace = true }
 yara-x = { workspace = true }
 
 [build-dependencies]

@@ -18,6 +18,13 @@ package yara_x
 //   return yrx_scanner_iter_slowest_rules(scanner, n, callback, (void*) slowest_rules_handle);
 // }
 //
+// extern void onModuleOutput(char*, char*, size_t, uintptr_t);
+// static inline void _yrx_module_output_trampoline(const char *name, const char *json, size_t len, void *user_data) {
+//   onModuleOutput((char*) name, (char*) json, len, (uintptr_t) user_data);
+// }
+// static inline enum YRX_RESULT _yrx_scanner_on_module_output(struct YRX_SCANNER *scanner, int enabled, uintptr_t user_data) {
+//   return yrx_scanner_on_module_output(scanner, enabled ? _yrx_module_output_trampoline : NULL, (void*) user_data);
+// }
 // extern void onMatchingRule(YRX_RULE*, uintptr_t);
 // extern void slowestRulesCallback(char*, char*, double, double, uintptr_t);
 import "C"
@@ -43,12 +50,66 @@ type Scanner struct {
 	// Rules from being garbage collected while the scanner is in use. If Rules
 	// is garbage collected the associated C.YRX_RULES object is destroyed
 	// before the C.YRX_SCANNER object.
-	rules *Rules
+	rules                *Rules
+	collectModuleOutputs bool
 }
 
 // ScanResults contains the results of a call to [Scanner.Scan] or [Rules.Scan].
 type ScanResults struct {
 	matchingRules []*Rule
+	moduleOutputs map[string]json.RawMessage
+}
+
+type scanState struct {
+	matchingRules []*Rule
+	moduleOutputs map[string]json.RawMessage
+	err           error
+}
+
+// CollectModuleOutputs enables or disables collecting the output produced
+// by YARA modules in [Scanner.Scan] and [Scanner.ScanFile]. It is disabled
+// by default, because every output is serialized to JSON and copied into
+// Go memory, which can be costly for large files.
+func (s *Scanner) CollectModuleOutputs(yes bool) {
+	s.collectModuleOutputs = yes
+}
+
+// ModuleOutputs returns the output of each YARA module that produced one,
+// indexed by module name (e.g: "pe"). Each value is a JSON object, produced
+// as-is by the library: bytes fields are {"$bytes": ["<base64>"]},
+// timestamps are {"$timestamp": [<seconds>]}, uint64 values above
+// math.MaxInt64 appear negative, and a non-finite float field makes that
+// value invalid JSON. Only modules imported by the rules produce output.
+//
+// The map is nil if collection was disabled or the scan returned an error,
+// and empty after a successful scan where no module produced output. Each
+// scan returns a new map owned by the caller.
+func (s ScanResults) ModuleOutputs() map[string]json.RawMessage {
+	return s.moduleOutputs
+}
+
+func copyNativeBytes(p unsafe.Pointer, n uint64) ([]byte, error) {
+	if n > uint64(math.MaxInt) {
+		return nil, fmt.Errorf("native buffer length %d exceeds maximum int", n)
+	}
+	b := make([]byte, int(n))
+	copy(b, unsafe.Slice((*byte)(p), int(n)))
+	return b, nil
+}
+
+//export onModuleOutput
+func onModuleOutput(name *C.char, data *C.char, dataLen C.size_t, handle C.uintptr_t) {
+	state := cgo.Handle(handle).Value().(*scanState)
+	if state.err != nil {
+		return
+	}
+	moduleName := C.GoString(name)
+	b, err := copyNativeBytes(unsafe.Pointer(data), uint64(dataLen))
+	if err != nil {
+		state.err = fmt.Errorf("output of module %q: %w", moduleName, err)
+		return
+	}
+	state.moduleOutputs[moduleName] = b
 }
 
 // MatchingRules returns the rules that matched during the scan.
@@ -61,11 +122,8 @@ func (s ScanResults) MatchingRules() []*Rule {
 //export onMatchingRule
 func onMatchingRule(rule *C.YRX_RULE, handle C.uintptr_t) {
 	h := cgo.Handle(handle)
-	matchingRules, ok := h.Value().(*[]*Rule)
-	if !ok {
-		panic("onMatchingRule didn't receive a *[]*Rule")
-	}
-	*matchingRules = append(*matchingRules, newRule(rule))
+	state := h.Value().(*scanState)
+	state.matchingRules = append(state.matchingRules, newRule(rule))
 }
 
 // NewScanner creates a Scanner that will use the provided YARA rules.
@@ -236,10 +294,15 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
 	}
 
-	var matchingRules []*Rule
-	handle := cgo.NewHandle(&matchingRules)
+	state := &scanState{}
+	if s.collectModuleOutputs {
+		state.moduleOutputs = make(map[string]json.RawMessage)
+	}
+	handle := cgo.NewHandle(state)
 	defer func() {
 		C._yrx_scanner_on_matching_rule(s.cScanner, nil, 0)
+		C._yrx_scanner_on_module_output(s.cScanner, 0, 0)
+		runtime.KeepAlive(s)
 		handle.Delete()
 	}()
 
@@ -250,6 +313,9 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 		s.cScanner,
 		C.YRX_RULE_CALLBACK(C.onMatchingRule),
 		C.uintptr_t(handle))
+	if s.collectModuleOutputs {
+		C._yrx_scanner_on_module_output(s.cScanner, 1, C.uintptr_t(handle))
+	}
 
 	var err error
 	switch r := C.yrx_scanner_scan(s.cScanner, ptr, C.size_t(len(buf))); r {
@@ -261,8 +327,13 @@ func (s *Scanner) Scan(buf []byte) (*ScanResults, error) {
 		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
 
-	runtime.KeepAlive(s)
-	return &ScanResults{matchingRules}, err
+	if err == nil {
+		err = state.err
+	}
+	if err != nil {
+		state.moduleOutputs = nil
+	}
+	return &ScanResults{state.matchingRules, state.moduleOutputs}, err
 }
 
 // ScanFile scans a file with the Rules associated to the Scanner.
@@ -270,10 +341,15 @@ func (s *Scanner) ScanFile(path string) (*ScanResults, error) {
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 
-	var matchingRules []*Rule
-	handle := cgo.NewHandle(&matchingRules)
+	state := &scanState{}
+	if s.collectModuleOutputs {
+		state.moduleOutputs = make(map[string]json.RawMessage)
+	}
+	handle := cgo.NewHandle(state)
 	defer func() {
 		C._yrx_scanner_on_matching_rule(s.cScanner, nil, 0)
+		C._yrx_scanner_on_module_output(s.cScanner, 0, 0)
+		runtime.KeepAlive(s)
 		handle.Delete()
 	}()
 
@@ -284,6 +360,9 @@ func (s *Scanner) ScanFile(path string) (*ScanResults, error) {
 		s.cScanner,
 		C.YRX_RULE_CALLBACK(C.onMatchingRule),
 		C.uintptr_t(handle))
+	if s.collectModuleOutputs {
+		C._yrx_scanner_on_module_output(s.cScanner, 1, C.uintptr_t(handle))
+	}
 
 	var err error
 	switch r := C.yrx_scanner_scan_file(s.cScanner, cPath); r {
@@ -295,8 +374,13 @@ func (s *Scanner) ScanFile(path string) (*ScanResults, error) {
 		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
 
-	runtime.KeepAlive(s)
-	return &ScanResults{matchingRules}, err
+	if err == nil {
+		err = state.err
+	}
+	if err != nil {
+		state.moduleOutputs = nil
+	}
+	return &ScanResults{state.matchingRules, state.moduleOutputs}, err
 }
 
 // ProfilingInfo contains profiling information about a YARA rule.

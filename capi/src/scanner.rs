@@ -123,6 +123,10 @@ pub struct YRX_SCANNER<'r, 'm> {
         extern "C" fn(rule: *const YRX_RULE, user_data: *mut c_void),
         *mut c_void,
     )>,
+    on_module_output: Option<(
+        extern "C" fn(*const c_char, *const c_char, usize, *mut c_void),
+        *mut c_void,
+    )>,
     module_data: HashMap<&'m str, &'m [u8]>,
 }
 
@@ -156,6 +160,7 @@ pub unsafe extern "C" fn yrx_scanner_create(
     *scanner = Box::into_raw(Box::new(YRX_SCANNER {
         inner: InnerScanner::SingleBlock(yara_x::Scanner::new(rules.inner())),
         on_matching_rule: None,
+        on_module_output: None,
         module_data: HashMap::new(),
     }));
 
@@ -305,7 +310,7 @@ pub unsafe extern "C" fn yrx_scanner_scan(
                     callback(&YRX_RULE::new(r), user_data);
                 }
             }
-            YRX_RESULT::YRX_SUCCESS
+            report_module_outputs(&results, scanner.on_module_output)
         }
         Err(ScanError::Timeout) => {
             _yrx_set_last_error(Some(ScanError::Timeout));
@@ -369,7 +374,7 @@ pub unsafe extern "C" fn yrx_scanner_scan_file(
                     callback(&YRX_RULE::new(r), user_data);
                 }
             }
-            YRX_RESULT::YRX_SUCCESS
+            report_module_outputs(&results, scanner.on_module_output)
         }
         Err(ScanError::Timeout) => {
             _yrx_set_last_error(Some(ScanError::Timeout));
@@ -840,6 +845,96 @@ pub unsafe extern "C" fn yrx_scanner_on_console_log(
     }
 
     _yrx_set_last_error::<&str>(None);
+    YRX_RESULT::YRX_SUCCESS
+}
+
+/// Callback function passed to [`yrx_scanner_on_module_output`].
+///
+/// Receives the name of a YARA module (e.g: "pe") and the module's output
+/// serialized as a JSON object. Both strings are read-only, NUL-terminated
+/// and borrowed for this invocation only: copy them if you need them after
+/// the callback returns. `json_len` is the length of `json` in bytes, not
+/// counting the terminator. `bytes` fields are encoded as
+/// `{ "$bytes": ["<base64>"] }`, timestamps as `{ "$timestamp": [<secs>] }`.
+/// `uint64` values above INT64_MAX appear as negative numbers, and a
+/// non-finite `float`/`double` value makes `json` invalid JSON.
+pub type YRX_MODULE_OUTPUT_CALLBACK = Option<
+    extern "C" fn(
+        module_name: *const c_char,
+        json: *const c_char,
+        json_len: usize,
+        user_data: *mut c_void,
+    ),
+>;
+
+/// Sets a callback that receives the output produced by each YARA module
+/// during a scan.
+///
+/// When [`yrx_scanner_scan`] or [`yrx_scanner_scan_file`] succeeds, the
+/// callback is invoked once per module that produced output, in no
+/// particular order, after all calls to the matching-rule callback. Only
+/// modules imported by the rules produce output, including outputs set with
+/// [`yrx_scanner_set_module_output`]. It is never invoked when the core scan
+/// fails or times out, or in block scanning mode, where modules don't run.
+///
+/// Callbacks run synchronously on the calling thread, before the scan
+/// function returns. The callback and `user_data` must stay valid until they
+/// are replaced, cleared with a null callback, or the scanner is destroyed.
+/// The callback must not scan with, reconfigure or destroy the same scanner.
+///
+/// Outputs are serialized only while a callback is set. If one can't be
+/// serialized, the scan function returns `YRX_SERIALIZATION_ERROR` and sets
+/// the last error. Callbacks already delivered for that scan are not undone,
+/// and the remaining outputs are not delivered.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn yrx_scanner_on_module_output(
+    scanner: *mut YRX_SCANNER,
+    callback: YRX_MODULE_OUTPUT_CALLBACK,
+    user_data: *mut c_void,
+) -> YRX_RESULT {
+    if let Some(scanner) = scanner.as_mut() {
+        scanner.on_module_output = callback.map(|cb| (cb, user_data));
+        _yrx_set_last_error::<&str>(None);
+        YRX_RESULT::YRX_SUCCESS
+    } else {
+        _yrx_set_last_error(Some("`scanner` pointer cannot be null"));
+        YRX_RESULT::YRX_INVALID_ARGUMENT
+    }
+}
+
+fn report_module_outputs(
+    results: &yara_x::ScanResults,
+    callback: Option<(
+        extern "C" fn(*const c_char, *const c_char, usize, *mut c_void),
+        *mut c_void,
+    )>,
+) -> YRX_RESULT {
+    let Some((callback, user_data)) = callback else {
+        return YRX_RESULT::YRX_SUCCESS;
+    };
+    for (name, output) in results.module_outputs() {
+        let name = match CString::new(name) {
+            Ok(name) => name,
+            Err(err) => {
+                _yrx_set_last_error(Some(err));
+                return YRX_RESULT::YRX_SERIALIZATION_ERROR;
+            }
+        };
+        let mut json = Vec::new();
+        if let Err(err) =
+            yara_x_proto::json::Serializer::new(&mut json).serialize(output)
+        {
+            _yrx_set_last_error(Some(err));
+            return YRX_RESULT::YRX_SERIALIZATION_ERROR;
+        }
+        json.push(0);
+        callback(
+            name.as_ptr(),
+            json.as_ptr().cast(),
+            json.len() - 1,
+            user_data,
+        );
+    }
     YRX_RESULT::YRX_SUCCESS
 }
 
