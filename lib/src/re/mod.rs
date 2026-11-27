@@ -83,12 +83,6 @@ impl RegexpAtom {
     }
 
     #[inline]
-    pub fn set_exact(&mut self, yes: bool) -> &mut Self {
-        self.atom.set_exact(yes);
-        self
-    }
-
-    #[inline]
     pub fn len(&self) -> usize {
         self.atom.len()
     }
