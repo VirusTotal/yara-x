@@ -138,8 +138,21 @@ impl AuthenticodeHasher for PE<'_> {
             }
             + Self::SIZE_OF_DIR_ENTRY * Self::IMAGE_DIRECTORY_ENTRY_SECURITY;
 
-        let (_, cert_table_size, _) = self
+        let (cert_table_offset, cert_table_size, _) = self
             .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_SECURITY, true)?;
+
+        // The size of the certificate table determines how much data at the
+        // end of the file is excluded from the hash, but it comes from the
+        // security entry in the data directory, which is not covered by the
+        // signature and can't be trusted. Make sure that the certificate
+        // table described by that entry ends exactly at the end of the file,
+        // otherwise data inserted before the table could be excluded from
+        // the hash by simply increasing the size in the entry.
+        if (cert_table_offset as usize).checked_add(cert_table_size as usize)?
+            != self.data.len()
+        {
+            return None;
+        }
 
         // Hash from start of the file to the checksum.
         digest.update(self.data.get(0..checksum_offset)?);

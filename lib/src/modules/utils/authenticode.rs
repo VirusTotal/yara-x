@@ -77,6 +77,10 @@ pub trait AuthenticodeHasher {
     /// trait, like [`Md5`], [`Sha1`] and [`Sha256`]. It should be newly created
     /// digest that hasn't being updated with any data yet. When this function
     /// returns the digest's output is the Authenticode hash.
+    ///
+    /// Returns `None` if the hash can't be computed. In that case the digest
+    /// may have been updated with only a part of the data, and its output
+    /// must not be used.
     fn hash(&self, digest: &mut dyn digest::Update) -> Option<()>;
 }
 
@@ -99,7 +103,7 @@ type CertVerificationCache<'a> = FxHashMap<(&'a [u8], &'a [u8]), bool>;
 /// - <https://docs.clamav.net/appendix/Authenticode.html>
 /// - <https://download.microsoft.com/download/9/c/5/9c5b2167/8017-4bae-9fde-d599bac8184a/authenticode_pe.docx>
 pub struct AuthenticodeParser<'a> {
-    digest_cache: FxHashMap<ObjectIdentifier, Vec<u8>>,
+    digest_cache: FxHashMap<ObjectIdentifier, Option<Vec<u8>>>,
     cert_cache: CertVerificationCache<'a>,
     remaining_sigs: usize,
 }
@@ -315,6 +319,9 @@ impl<'a> AuthenticodeParser<'a> {
 
         // Compute the Authenticode hash at most once per digest algorithm
         // instead of re-hashing the entire PE/MSI for every nested signature.
+        // The cached value is `None` if the hash could not be computed, in
+        // which case the digest has been updated only partially, or not at
+        // all, and must not be used.
         let canonical_alg = match digest_algorithm {
             rfc5912::ID_MD_2 | rfc5912::MD_2_WITH_RSA_ENCRYPTION => {
                 rfc5912::ID_MD_2
@@ -347,33 +354,33 @@ impl<'a> AuthenticodeParser<'a> {
             .or_insert_with(|| match canonical_alg {
                 rfc5912::ID_MD_2 => {
                     let mut md2 = Md2::default();
-                    authenticode_hasher.hash(&mut md2);
-                    md2.finalize().to_vec()
+                    authenticode_hasher.hash(&mut md2)?;
+                    Some(md2.finalize().to_vec())
                 }
                 rfc5912::ID_MD_5 => {
                     let mut md5 = Md5::default();
-                    authenticode_hasher.hash(&mut md5);
-                    md5.finalize().to_vec()
+                    authenticode_hasher.hash(&mut md5)?;
+                    Some(md5.finalize().to_vec())
                 }
                 rfc5912::ID_SHA_1 => {
                     let mut sha1 = Sha1::default();
-                    authenticode_hasher.hash(&mut sha1);
-                    sha1.finalize().to_vec()
+                    authenticode_hasher.hash(&mut sha1)?;
+                    Some(sha1.finalize().to_vec())
                 }
                 rfc5912::ID_SHA_256 => {
                     let mut sha256 = Sha256::default();
-                    authenticode_hasher.hash(&mut sha256);
-                    sha256.finalize().to_vec()
+                    authenticode_hasher.hash(&mut sha256)?;
+                    Some(sha256.finalize().to_vec())
                 }
                 rfc5912::ID_SHA_384 => {
                     let mut sha384 = Sha384::default();
-                    authenticode_hasher.hash(&mut sha384);
-                    sha384.finalize().to_vec()
+                    authenticode_hasher.hash(&mut sha384)?;
+                    Some(sha384.finalize().to_vec())
                 }
                 rfc5912::ID_SHA_512 => {
                     let mut sha512 = Sha512::default();
-                    authenticode_hasher.hash(&mut sha512);
-                    sha512.finalize().to_vec()
+                    authenticode_hasher.hash(&mut sha512)?;
+                    Some(sha512.finalize().to_vec())
                 }
                 _ => unreachable!(),
             })
@@ -384,7 +391,8 @@ impl<'a> AuthenticodeParser<'a> {
         // The Authenticode signature is verified if:
         //
         // * The hash stored in the Authenticode signature matches the actual
-        //   hash that we computed by ourselves.
+        //   hash that we computed by ourselves. If the hash could not be
+        //   computed the signature is not verified.
         // * The content of the `SignedData` structure (which contains the
         //   authenticode hash) has not been tampered. This is verified by
         //   comparing the hash of the content with the one stored in the
@@ -392,8 +400,8 @@ impl<'a> AuthenticodeParser<'a> {
         // * The `SignerInfo` struct has not been tampered, which is verified
         //   by `verify_signer_info`.
         //
-        let verified = authenticode_digest.digest
-            == computed_authenticode_hash.as_slice()
+        let verified = computed_authenticode_hash.as_deref()
+            == Some(authenticode_digest.digest)
             && verify_message_digest(
                 &signer_info.digest_algorithm,
                 signed_data_raw,
@@ -415,7 +423,8 @@ impl<'a> AuthenticodeParser<'a> {
         };
 
         signatures.push(AuthenticodeSignature {
-            computed_authenticode_hash,
+            computed_authenticode_hash: computed_authenticode_hash
+                .unwrap_or_default(),
             program_name,
             more_info,
             authenticode_digest,

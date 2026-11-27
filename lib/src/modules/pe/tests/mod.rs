@@ -642,3 +642,64 @@ fn valid_on() {
         &pe
     );
 }
+
+#[test]
+fn signature_cert_table_not_at_end_of_file() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/111aeddc6a6dbf64b28cb565aa12af9ee3cc0a56ce31e4da0068cf6b474c3288.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.is_signed and pe.signatures[0].verified
+        }
+        "#,
+        &pe
+    );
+
+    // Offset of the security entry in the data directory of this 32-bit PE.
+    // The entry is not covered by the Authenticode hash.
+    let pe_hdr = u32::from_le_bytes(pe[0x3c..0x40].try_into().unwrap());
+    let entry = pe_hdr as usize + 24 + 96 + 4 * 8;
+
+    let offset = u32::from_le_bytes(pe[entry..entry + 4].try_into().unwrap());
+    let size =
+        u32::from_le_bytes(pe[entry + 4..entry + 8].try_into().unwrap());
+
+    assert_eq!(offset as usize + size as usize, pe.len());
+
+    // Insert some data between the signed content and the certificate table,
+    // and change the security entry so that it points to the new location of
+    // the certificate table. The size in the entry is also increased, trying
+    // to exclude the inserted data from the Authenticode hash. The resulting
+    // certificate table goes beyond the end of the file, and the signature
+    // must not be verified.
+    let inserted = [0x41_u8; 1024];
+
+    for tampered_size in [size + inserted.len() as u32, u32::MAX] {
+        let mut tampered = pe.clone();
+
+        tampered.splice(offset as usize..offset as usize, inserted);
+        tampered[entry..entry + 4].copy_from_slice(
+            &(offset + inserted.len() as u32).to_le_bytes(),
+        );
+        tampered[entry + 4..entry + 8]
+            .copy_from_slice(&tampered_size.to_le_bytes());
+
+        rule_true!(
+            r#"
+            import "pe"
+            rule test {
+              condition:
+                pe.number_of_signatures == 1 and
+                not pe.signatures[0].verified and
+                not pe.is_signed
+            }
+            "#,
+            &tampered
+        );
+    }
+}
