@@ -3,6 +3,11 @@ warning[slow_pattern]: slow pattern
   |
 3 |     $a = {00 [1-10] 01}
   |          -------------- this pattern may slow down the scan
+warning[greedy_dot_star]: greedy `.*` in pattern `$a`
+  --> line:10:11
+   |
+10 |    $a = /a.*/
+   |           -- consider using `.*?` instead
 warning[slow_pattern]: slow pattern
   --> line:10:4
    |
