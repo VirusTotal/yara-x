@@ -46,6 +46,7 @@ impl Dex {
     const ENDIAN_CONSTANT: u32 = 0x12345678;
     const REVERSE_ENDIAN_CONSTANT: u32 = 0x78563412;
     const DEX_HEADER_SIZE: u32 = 0x70;
+    const DEX_HEADER_SIZE_V41: u32 = 0x78;
     const NO_INDEX: u32 = 0xffffffff;
 
     const MAX_STRINGS: usize = 1_000_000;
@@ -197,9 +198,15 @@ impl Dex {
                 v.iter().map(|b| format!("{b:02x}")).collect()
             }), // signature
             verify(le_u32, |&size| size <= file_size), // file_size
-            // There should be a check for header size depending on the DEX version,
-            // but the format itself does not follow this.
-            verify(le_u32, |&size| size == 0x70), // header_size
+            // The header is 0x70 bytes long up to DEX version 40. Version 41
+            // added `container_size` and `header_offset`, which makes it 0x78
+            // bytes long. The old size is still accepted in version 41, as
+            // these checks are not meant to be strict.
+            verify(le_u32, |&size| {
+                size == Self::DEX_HEADER_SIZE
+                    || (size == Self::DEX_HEADER_SIZE_V41
+                        && header.version >= DexVersion::DEX41)
+            }), // header_size
             verify(le_u32, |&tag| {
                 tag == Self::ENDIAN_CONSTANT
                     || tag == Self::REVERSE_ENDIAN_CONSTANT

@@ -1,0 +1,80 @@
+is_dex: true
+header:
+    magic: 0x6465780a
+    version: 41
+    checksum: 0x2daf31a4
+    signature: "7048542c8e9a8f60acaef17154ca8ada84489e94"
+    file_size: 412
+    header_size: 0x78
+    endian_tag: 0x12345678
+    link_size: 0
+    link_off: 0x0
+    container_size: 412
+    header_offset: 0x0
+strings:
+  - "Lcom/evil/Dropper;"
+  - "Ljava/lang/Object;"
+  - "V"
+  - "sendPremiumSms"
+types:
+  - "Lcom/evil/Dropper;"
+  - "Ljava/lang/Object;"
+  - "V"
+protos:
+  - shorty: "V"
+    return_type: "V"
+    parameters_count: 0
+methods:
+  - class: "Lcom/evil/Dropper;"
+    proto:
+        shorty: "V"
+        return_type: "V"
+        parameters_count: 0
+    name: "sendPremiumSms"
+class_defs:
+  - class: "Lcom/evil/Dropper;"
+    access_flags: 0x1  # ACC_PUBLIC
+    superclass: "Ljava/lang/Object;"
+map_list:
+    size: 10
+    items:
+      - type: TYPE_HEADER_ITEM
+        unused: 0
+        size: 1
+        offset: 0x0
+      - type: TYPE_STRING_ID_ITEM
+        unused: 0
+        size: 4
+        offset: 0x78
+      - type: TYPE_TYPE_ID_ITEM
+        unused: 0
+        size: 3
+        offset: 0x88
+      - type: TYPE_PROTO_ID_ITEM
+        unused: 0
+        size: 1
+        offset: 0x94
+      - type: TYPE_METHOD_ID_ITEM
+        unused: 0
+        size: 1
+        offset: 0xa0
+      - type: TYPE_CLASS_DEF_ITEM
+        unused: 0
+        size: 1
+        offset: 0xa8
+      - type: TYPE_CODE_ITEM
+        unused: 0
+        size: 1
+        offset: 0xc8
+      - type: TYPE_CLASS_DATA_ITEM
+        unused: 0
+        size: 1
+        offset: 0xda
+      - type: TYPE_STRING_DATA_ITEM
+        unused: 0
+        size: 4
+        offset: 0xe2
+      - type: TYPE_MAP_LIST
+        unused: 0
+        size: 1
+        offset: 0x120
