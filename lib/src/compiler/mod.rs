@@ -181,7 +181,10 @@ impl<'src> SourceCode<'src> {
     ///
     /// This is usually the path of the file that contained the source code,
     /// but it can be an arbitrary string. The origin appears in error and
-    /// warning messages.
+    /// warning messages. It is also returned by [`crate::Rule::origin`] for
+    /// the rules defined in this source code. Serialization does not change
+    /// the original rules, but rules obtained by deserialization have no
+    /// origin.
     pub fn with_origin<S: Into<String>>(self, origin: S) -> Self {
         Self { raw: self.raw, valid: self.valid, origin: Some(origin.into()) }
     }
@@ -872,8 +875,14 @@ impl<'a> Compiler<'a> {
                 }
             }
 
+            let origins = this.report_builder.origins(
+                this.rules
+                    .iter()
+                    .filter_map(|rule| rule.ident_ref.source_id()),
+            );
             (
                 Rules {
+                    origins,
                     serialized_globals,
                     wasm_mod: Vec::new(),
                     compiled_wasm_mod: None,

@@ -422,6 +422,26 @@ def test_ignored_modules():
   assert len(rules.scan(b'').matching_rules) == 1
 
 
+def test_rule_origin():
+  compiler = yara_x.Compiler()
+  compiler.add_source('rule named { condition: true }', origin='foo.yar')
+  compiler.add_source('rule empty { condition: true }', origin='')
+  compiler.add_source('rule absent { condition: true }')
+  rules = compiler.build()
+
+  expected = {'named': 'foo.yar', 'empty': '', 'absent': None}
+  assert {rule.identifier: rule.origin for rule in rules} == expected
+  assert {rule.identifier: rule.origin for rule in rules.scan(b'').matching_rules} == expected
+
+  f = io.BytesIO()
+  rules.serialize_into(f)
+  f.seek(0)
+  restored = yara_x.Rules.deserialize_from(f)
+  expected = {'named': None, 'empty': None, 'absent': None}
+  assert {rule.identifier: rule.origin for rule in restored} == expected
+  assert {rule.identifier: rule.origin for rule in restored.scan(b'').matching_rules} == expected
+
+
 def test_serialization():
   rules = yara_x.compile('rule foo {condition: true}')
   f = io.BytesIO()

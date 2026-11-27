@@ -507,6 +507,20 @@ class Rule:
         ...
 
     @property
+    def origin(self) -> Optional[str]:
+        r"""
+        The origin of the source code that defined this rule. If the source
+        was added with an origin, that origin is returned verbatim, and an
+        empty string is a valid origin. A rule defined in an included file
+        returns the label shown in error messages, relative to the working
+        directory at compile time when possible. Otherwise the origin is
+        `None`. Origins are not serialized, so rules obtained by
+        deserialization never have one. Serializing does not change the
+        original rules.
+        """
+        ...
+
+    @property
     def tags(self) -> Tuple[str, ...]:
         r"""
         Returns the rule's tags.

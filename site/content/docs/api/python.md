@@ -193,7 +193,9 @@ code is not valid.
 The optional `origin` parameter is a string that specifies the origin of the
 source code. This is usually the path of the file containing the source code,
 but it can be any arbitrary string conveying information about the source's
-origin.
+origin. The origin is also available as [Rule.origin](#origin). Serializing
+rules does not change the original rules, but rules obtained by deserialization
+have no origin.
 
 Raises: [yara_x.CompileError](#compileerror)
 
@@ -741,6 +743,16 @@ A `str` with the rule's identifier.
 #### .namespace
 
 A `str` with the rule's namespace.
+
+#### .origin
+
+The origin of the source code that defined this rule. If the source was added
+with an origin, that origin is returned verbatim, and an empty string is a valid
+origin. A rule defined in an included file returns the label shown in error
+messages, relative to the working directory at compile time when possible.
+Otherwise the origin is `None`. Origins are not serialized, so rules obtained
+by deserialization never have one. Serializing does not change the original
+rules.
 
 #### .patterns
 

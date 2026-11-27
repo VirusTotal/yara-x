@@ -18,7 +18,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::compiler::atoms::Atom;
 use crate::compiler::errors::SerializationError;
-use crate::compiler::report::CodeLoc;
+use crate::compiler::report::{CodeLoc, SourceId};
 use crate::compiler::warnings::Warning;
 use crate::compiler::{
     IdentId, Imports, LiteralId, LiteralSetId, NamespaceId, PatternId,
@@ -240,6 +240,11 @@ pub struct Rules {
     /// serialized rules won't have any warnings.
     #[serde(skip)]
     pub(in crate::compiler) warnings: Vec<Warning>,
+
+    /// Origin of each source code that defined at least one rule. Used by
+    /// [`crate::Rule::origin`]. Not serialized.
+    #[serde(skip)]
+    pub(in crate::compiler) origins: FxHashMap<SourceId, String>,
 
     /// Grouped `RegexSet` persistent definitions.
     ///
@@ -750,6 +755,13 @@ impl Rules {
         &self.ident_pool
     }
 
+    pub(crate) fn rule_origin(&self, rule: &RuleInfo) -> Option<&str> {
+        rule.ident_ref
+            .source_id()
+            .and_then(|id| self.origins.get(&id))
+            .map(String::as_str)
+    }
+
     #[inline]
     pub(crate) fn globals(&self) -> types::Struct {
         postcard::from_bytes(self.serialized_globals.as_slice())
@@ -957,10 +969,8 @@ pub(crate) struct RuleInfo {
     pub ident_id: IdentId,
     /// Tags associated to the rule.
     pub tags: Vec<IdentId>,
-    /// Reference to the rule identifier in the source code. This field is
-    /// ignored while serializing and deserializing compiles rules, as it
-    /// is used only during the compilation phase, but not during the scan
-    /// phase.
+    /// Reference to the rule identifier in the source code. Used during
+    /// compilation and by [`crate::Rule::origin`] at runtime. Not serialized.
     #[serde(skip)]
     pub ident_ref: CodeLoc,
     /// Metadata associated to the rule.
