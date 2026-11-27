@@ -1,0 +1,17 @@
+magic: 0xcefaedfe
+cputype: 0x7
+cpusubtype: 0x3
+filetype: 2
+ncmds: 1
+sizeofcmds: 16
+flags: 0x0
+number_of_segments: 0
+code_signature_data:
+    dataoff: 44
+    datasize: 678
+entitlements:
+  - "com.apple.security.get-task-allow"
+certificates:
+  - issuer: "CN=Test Root CA"
+    subject: "CN=Test Leaf"
+    is_self_signed: false

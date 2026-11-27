@@ -1094,6 +1094,10 @@ impl<'a> MachOFile<'a> {
                 blob_index.blob.as_ref().map(|blob| (off, blob))
             });
 
+            // Ranges within the SuperBlob occupied by the blobs that have
+            // been parsed so far.
+            let mut parsed_blobs = Vec::<(usize, usize)>::new();
+
             for (offset, blob) in blobs {
                 let length = blob.length as usize;
                 let size_of_blob = std::mem::size_of::<CSBlob>();
@@ -1103,13 +1107,40 @@ impl<'a> MachOFile<'a> {
                 let Some(blob_end) = offset.checked_add(length) else {
                     continue;
                 };
+
+                // Only the entitlements and the signature are parsed.
+                if !matches!(
+                    blob.magic,
+                    CS_MAGIC_EMBEDDED_ENTITLEMENTS | CS_MAGIC_BLOBWRAPPER
+                ) {
+                    continue;
+                }
+
+                let Some(blob_data) = super_data.get(blob_start..blob_end)
+                else {
+                    continue;
+                };
+
+                // The blobs in a well-formed SuperBlob don't overlap. Blobs
+                // overlapping one that was already parsed are skipped, which
+                // prevents parsing the same data once per index entry when
+                // multiple entries have the same offset, or when they point
+                // to blobs that are nested in one another. This way the
+                // amount of data parsed, and the number of entitlements and
+                // certificates produced from it, is bounded by the size of
+                // the SuperBlob and not by the number of index entries.
+                if parsed_blobs
+                    .iter()
+                    .any(|&(start, end)| offset < end && start < blob_end)
+                {
+                    continue;
+                }
+
+                parsed_blobs.push((offset, blob_end));
+
                 match blob.magic {
                     CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
-                        let Some(xml_data) =
-                            super_data.get(blob_start..blob_end)
-                        else {
-                            continue;
-                        };
+                        let xml_data = blob_data;
 
                         if xml_data.len() > MachO::MAX_ENTITLEMENTS_XML_BYTES {
                             continue;
@@ -1186,10 +1217,8 @@ impl<'a> MachOFile<'a> {
                         }
                     }
                     CS_MAGIC_BLOBWRAPPER => {
-                        if let Some(ber_blob) =
-                            super_data.get(blob_start..blob_end)
-                            && let Ok((_remainder, certs)) =
-                                parse_certificates(ber_blob)
+                        if let Ok((_remainder, certs)) =
+                            parse_certificates(blob_data)
                         {
                             self.certificates.extend(certs);
                         }
