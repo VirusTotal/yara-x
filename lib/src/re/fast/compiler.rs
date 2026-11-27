@@ -175,21 +175,107 @@ impl Compiler {
             })
         };
 
+        // Reconciles the exactness (and necessity) of an atom produced for
+        // alternative `alt_idx` before inserting it into Aho-Corasick.
+        //
+        // At scan time, an exact atom (`atom.is_exact() == true`) short-circuits
+        // verification: `FastVM` is not invoked, and the scanner directly
+        // reports `atom_pos..atom_pos + atom.len()` as the match range.
+        //
+        // - For multi-piece patterns (`pieces.len() > 1`), atoms can never be
+        //   exact because surrounding pieces still need to be verified by
+        //   `FastVM`.
+        // - For a single non-alternation piece (`[PatternPiece::Pattern(_)]`),
+        //   any atom covering the full pattern is unconditionally exact.
+        // - For a single alternation piece (`[PatternPiece::Alternation(alts)]`,
+        //   which occurs e.g. in chained tails like `/C0A.*(1x|1xy)/s` or
+        //   standalone masked alternations like `{ (31 78 79 | 31 7?) }`),
+        //   ordered alternation semantics require that earlier alternatives
+        //   take precedence over later ones at the same starting offset. An
+        //   exact atom for `alts[alt_idx]` (which has `backtrack == 0` and
+        //   covers `alts[alt_idx]` in full) must therefore be checked against
+        //   all earlier alternatives `alts[..alt_idx]`:
+        //
+        //   1. Shadowed (`prev.len() <= atom.len()` and `prev` matches
+        //      `atom[..prev.len()]`): e.g. `"1xy"` in `(1x|1xy)`. Whenever
+        //      `atom` matches at offset `p`, `prev` also matches at `p` and
+        //      must win. Leaving `atom` exact would bypass `FastVM` and emit
+        //      the wrong span `p..p + atom.len()` (which in a greedy chain
+        //      like `/C0A.*(1x|1xy)/s` overwrites the shorter winning match
+        //      via `replace_if_longer`). Since `prev` already emits atoms
+        //      covering this offset, `atom` is dead and can be dropped.
+        //
+        //   2. Ambiguous prefix (`prev.len() > atom.len()` and `atom` matches
+        //      `prev[..atom.len()]`): e.g. `"1x"` in `(1xy|1x)`. Seeing `atom`
+        //      at offset `p` is genuinely insufficient to determine the match
+        //      length without looking past `atom` to see if `prev` also
+        //      matches. Leaving `atom` exact would emit `p..p + atom.len()`
+        //      before the longer match is seen (which in a non-greedy pattern
+        //      like `/C0A.*?(1xy|1x)/s` or `{ (31 78 79 | 31 7?) }` causes
+        //      the shorter match to win). Marking `atom` inexact forces
+        //      `FastVM` to inspect the following bytes and pick the highest-
+        //      priority alternative. We keep scanning `alts[..alt_idx]` rather
+        //      than returning early, because a subsequent earlier alternative
+        //      may still shadow `atom` (e.g. `"1x"` shadowing `"1xy"` in
+        //      `(1xyz|1x|1xy)`).
+        //
+        //   3. Otherwise, no earlier alternative can conflict with `atom` at
+        //      the same starting offset, so `atom` stays exact.
+        let finalize_atom = |mut atom: Atom, alt_idx: usize| -> Option<Atom> {
+            match pieces.as_slice() {
+                [PatternPiece::Pattern(_)] => Some(atom),
+                [PatternPiece::Alternation(alts)] if atom.is_exact() => {
+                    let mut ambiguous_prefix = false;
+                    for prev in &alts[..alt_idx] {
+                        if prev.matches_prefix(atom.as_ref()) {
+                            if prev.len() <= atom.len() {
+                                return None;
+                            }
+                            ambiguous_prefix = true;
+                        }
+                    }
+                    if ambiguous_prefix {
+                        atom.set_exact(false);
+                    }
+                    Some(atom)
+                }
+                [PatternPiece::Alternation(_)] => Some(atom),
+                _ => {
+                    atom.set_exact(false);
+                    Some(atom)
+                }
+            }
+        };
+
         // Literal atoms are added directly, while masked atoms are collected
-        // as `(pattern, mask, range, combinations)` first so we can enforce
-        // MAX_ATOMS_PER_REGEXP before expanding their mask combinations.
-        for (pattern, mask, range, _) in best_atoms {
+        // as `(pattern, mask, range, combinations, alt_idx)` first so we can
+        // enforce MAX_ATOMS_PER_REGEXP before expanding their mask
+        // combinations.
+        for (alt_idx, (pattern, mask, range, _)) in
+            best_atoms.into_iter().enumerate()
+        {
             match (pattern, mask) {
                 (pattern, Some(mask)) => {
                     let combinations = count_combinations(mask, &range);
-                    masked_atoms.push((pattern, mask, range, combinations));
+                    masked_atoms.push((
+                        pattern,
+                        mask,
+                        range,
+                        combinations,
+                        alt_idx,
+                    ));
                 }
-                (pattern, None) => atoms.push(RegexpAtom {
-                    atom: Atom::from_slice_range(pattern, range)
-                        .ok_or(Error::FastIncompatible)?,
-                    fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
-                    bck_code: bck_code_start.map(BckCodeLoc::from),
-                }),
+                (pattern, None) => {
+                    let atom = Atom::from_slice_range(pattern, range)
+                        .ok_or(Error::FastIncompatible)?;
+                    if let Some(atom) = finalize_atom(atom, alt_idx) {
+                        atoms.push(RegexpAtom {
+                            atom,
+                            fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
+                            bck_code: bck_code_start.map(BckCodeLoc::from),
+                        });
+                    }
+                }
             }
         }
 
@@ -201,7 +287,7 @@ impl Compiler {
         loop {
             let num_atoms = masked_atoms
                 .iter()
-                .map(|(_, _, _, combinations)| *combinations)
+                .map(|(_, _, _, combinations, _)| *combinations)
                 .fold(atoms.len(), usize::saturating_add);
 
             if num_atoms <= MAX_ATOMS_PER_REGEXP {
@@ -211,12 +297,12 @@ impl Compiler {
             // Pick the masked atom with the most combinations that can still
             // be narrowed without dropping below 2 bytes. If no atom can be
             // narrowed further, fall back to Thompson's compiler.
-            let Some((_, mask, range, combinations)) = masked_atoms
+            let Some((_, mask, range, combinations, _)) = masked_atoms
                 .iter_mut()
-                .filter(|(_, _, range, combinations)| {
+                .filter(|(_, _, range, combinations, _)| {
                     range.len() > 2 && *combinations > 1
                 })
-                .max_by_key(|(_, _, _, combinations)| *combinations)
+                .max_by_key(|(_, _, _, combinations, _)| *combinations)
             else {
                 return Err(Error::FastIncompatible);
             };
@@ -253,25 +339,18 @@ impl Compiler {
         // Expand the remaining masked atoms. Constructing each MaskedAtom from
         // the narrowed range sets `backtrack` to `range.start` and marks
         // narrowed atoms as inexact automatically.
-        for (pattern, mask, range, _) in masked_atoms {
+        for (pattern, mask, range, _, alt_idx) in masked_atoms {
             let masked_atom =
                 MaskedAtom::from_slice_range(pattern, mask, range)
                     .ok_or(Error::FastIncompatible)?;
             for atom in masked_atom.mask_combinations() {
-                atoms.push(RegexpAtom {
-                    atom,
-                    fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
-                    bck_code: bck_code_start.map(BckCodeLoc::from),
-                })
-            }
-        }
-
-        // If the pattern was decomposed into more than one piece its atoms can
-        // not be exact. The atoms could be exact if the pattern was a single
-        // piece, and it fits completely in the atom.
-        if pieces.len() > 1 {
-            for atom in atoms.iter_mut() {
-                atom.set_exact(false);
+                if let Some(atom) = finalize_atom(atom, alt_idx) {
+                    atoms.push(RegexpAtom {
+                        atom,
+                        fwd_code: Some(FwdCodeLoc::from(fwd_code_start)),
+                        bck_code: bck_code_start.map(BckCodeLoc::from),
+                    })
+                }
             }
         }
 
@@ -340,6 +419,33 @@ enum PatternPiece {
 enum Pattern {
     Literal(Vec<u8>),
     Masked(Vec<u8>, Vec<u8>),
+}
+
+impl Pattern {
+    fn len(&self) -> usize {
+        match self {
+            Pattern::Literal(bytes) | Pattern::Masked(bytes, _) => bytes.len(),
+        }
+    }
+
+    /// Returns `true` if `self` and `bytes` agree across their shared prefix
+    /// `0..min(self.len(), bytes.len())`.
+    fn matches_prefix(&self, bytes: &[u8]) -> bool {
+        match self {
+            Pattern::Literal(lit) => {
+                let n = lit.len().min(bytes.len());
+                lit[..n] == bytes[..n]
+            }
+            Pattern::Masked(pat, mask) => {
+                let n = pat.len().min(bytes.len());
+                pat[..n]
+                    .iter()
+                    .zip(&mask[..n])
+                    .zip(&bytes[..n])
+                    .all(|((&p, &m), &b)| (b & m) == (p & m))
+            }
+        }
+    }
 }
 
 /// Given the [`Hir`] for a regexp pattern, decomposed it into
@@ -772,5 +878,61 @@ mod tests {
                 Err(Error::FastIncompatible)
             ));
         }
+    }
+
+    #[test]
+    fn alternation_exact_atoms() {
+        // Shorter alternative precedes longer prefix-matching alternative:
+        // "1xy" is shadowed by "1x" and dropped; "1x" remains exact.
+        let atoms = compile("/(1x|1xy)/").unwrap();
+        assert_eq!(atoms.len(), 1);
+        assert_eq!(atoms[0].atom.as_ref(), b"1x");
+        assert!(atoms[0].atom.is_exact());
+
+        // Longer alternative precedes shorter prefix-matching alternative:
+        // "1xy" stays exact, while "1x" is genuinely inexact because byte 2
+        // must be checked for 'y'.
+        let atoms = compile("/(1xy|1x)/").unwrap();
+        assert_eq!(atoms.len(), 2);
+        assert_eq!(atoms[0].atom.as_ref(), b"1xy");
+        assert!(atoms[0].atom.is_exact());
+        assert_eq!(atoms[1].atom.as_ref(), b"1x");
+        assert!(!atoms[1].atom.is_exact());
+
+        // Three-way: "1xy" is shadowed by "1x" even though "1xyz" precedes
+        // both; "1x" is marked inexact because of "1xyz".
+        let atoms = compile("/(1xyz|1x|1xy)/").unwrap();
+        assert_eq!(atoms.len(), 2);
+        assert_eq!(atoms[0].atom.as_ref(), b"1xyz");
+        assert!(atoms[0].atom.is_exact());
+        assert_eq!(atoms[1].atom.as_ref(), b"1x");
+        assert!(!atoms[1].atom.is_exact());
+
+        // Disjoint variable-length alternatives stay exact.
+        let atoms = compile("/(1x|2xy)/").unwrap();
+        assert_eq!(atoms.len(), 2);
+        assert!(atoms.iter().all(|a| a.atom.is_exact()));
+
+        // Masked shorter alternative followed by partially overlapping longer
+        // masked alternative: only the shadowed atom (b"1xy") is dropped;
+        // non-overlapping atoms stay exact.
+        let atoms =
+            compile(r"/(\x31[\x70-\x7f]|[\x30-\x3f]\x78\x79)/").unwrap();
+        assert_eq!(atoms.len(), 16 + 15);
+        assert!(atoms.iter().all(|a| a.atom.is_exact()));
+        assert!(!atoms.iter().any(|a| a.atom.as_ref() == b"1xy"));
+
+        // Longer literal followed by partially overlapping shorter masked
+        // alternative: only b"1x" becomes inexact; the other 15 remain exact.
+        let atoms = compile(r"/(\x31\x78\x79|\x31[\x70-\x7f])/").unwrap();
+        assert_eq!(atoms.len(), 1 + 16);
+        assert_eq!(
+            atoms
+                .iter()
+                .filter(|a| !a.atom.is_exact())
+                .map(|a| a.atom.as_ref())
+                .collect::<Vec<_>>(),
+            vec![b"1x".as_slice()]
+        );
     }
 }

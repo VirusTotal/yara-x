@@ -2597,6 +2597,30 @@ fn regexp_patterns_6() {
     // Greedy non-newline jumps must still stop before the first newline.
     pattern_match!(r"/foo.{0,5}a/", b"fooabca\na", b"fooabca");
     pattern_match!(r"/foo.{0,5}\n/", b"foox\ny\n", b"foox\n");
+
+    // Chained patterns with ordered alternation tails (issue #909).
+    pattern_match!(r"/C0A.*(1x|1xy)/s", b"C0Aa\x00b1xy", b"C0Aa\x00b1x");
+    pattern_match!(r"/C0A.{0,201}(1x|1xy)/s", b"C0Aa\x00b1xy", b"C0Aa\x00b1x");
+    pattern_match!(
+        r"/C0A.*(1x|1xy)/s wide",
+        b"C\x000\x00A\x00a\x00\x00\x00b\x001\x00x\x00y\x00",
+        b"C\x000\x00A\x00a\x00\x00\x00b\x001\x00x\x00"
+    );
+    pattern_match!(r"/C0A.*?(1xy|1x)/s", b"C0Aa\x00b1xy", b"C0Aa\x00b1xy");
+    pattern_match!(r"/C0A.*?(1xy|1x)/s", b"C0Aa\x00b1xz", b"C0Aa\x00b1x");
+    pattern_match!(
+        r"/C0AB.{0,201}?(1xzwq|1xzw)/s",
+        b"C0ABa\x00b1xzwq",
+        b"C0ABa\x00b1xzwq"
+    );
+    pattern_match!(
+        r"/C0AB.{0,201}?(1xzwq|1xzw)/s",
+        b"C0ABa\x00b1xzw!",
+        b"C0ABa\x00b1xzw"
+    );
+    pattern_match!(r"{ (31 78 79 | 31 7?) }", b"1xy", b"1xy");
+    pattern_match!(r"{ (31 78 79 | 31 7?) }", b"1xz", b"1x");
+    pattern_match!(r"{ (31 7? | 31 78 79) }", b"1xy", b"1x");
 }
 
 #[test]
