@@ -2,7 +2,8 @@
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::cmp::Reverse;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::iter;
 use std::num::NonZeroU32;
@@ -2325,141 +2326,229 @@ fn check_unintended_patterns_in_sets<'src>(
     ctx: &mut CompileContext<'_, 'src>,
     condition: &'src ast::Expr<'src>,
 ) {
+    if ctx.current_rule_patterns.is_empty() {
+        return;
+    }
+
     // Decompose condition AST into DNF execution paths (conjunctive branches).
     let Some(conjunctive_branches) = ConjunctiveBranches::from_expr(condition)
     else {
         return;
     };
-    let mut reported = std::collections::HashSet::new();
+
+    let mut reported = HashSet::new();
+
+    // Built lazily on the first branch that contains a wildcard pattern set
+    // so rules without wildcard sets avoid allocating, sorting, or hashing.
+    let mut patterns = Vec::new();
+    let mut longer_sets = Vec::new();
+    let mut wildcard_sets = IndexMap::new();
+    let mut explicit_patterns = HashMap::new();
 
     for branch in conjunctive_branches.branches() {
-        let mut explicit_patterns = Vec::new();
-        let mut wildcard_pattern_sets = Vec::new();
+        if !collect_branch_pattern_uses(
+            branch,
+            &mut wildcard_sets,
+            &mut explicit_patterns,
+        ) {
+            continue;
+        }
 
-        // Extract explicit pattern presence checks and wildcard pattern sets
-        // active within this specific conjunctive branch.
-        for expr in branch.exprs() {
-            match expr {
-                // Direct pattern match (e.g. `$s1` or `$s1 at 100`).
-                ast::Expr::PatternMatch(pm)
-                    if !pm.identifier.name.is_empty() =>
-                {
-                    explicit_patterns
-                        .push((pm.identifier.name, pm.identifier.span()));
-                }
-                // Pattern set in `of` expressions (e.g. `1 of ($s1, $s*)`).
-                ast::Expr::Of(of) => {
-                    if let ast::OfItems::PatternSet(ast::PatternSet::Set(
-                        set,
-                    )) = &of.items
-                    {
-                        for item in set {
-                            if item.wildcard {
-                                wildcard_pattern_sets
-                                    .push((item.identifier, item.span()));
-                            } else {
-                                explicit_patterns
-                                    .push((item.identifier, item.span()));
-                            }
-                        }
+        // Identifiers of the rule's patterns in lexicographical order, each
+        // with the index of the first pattern that has it. Identifiers with
+        // the same prefix are contiguous, so patterns covered by a wildcard
+        // set are located with binary search instead of scanning all patterns.
+        if patterns.is_empty() {
+            patterns = ctx
+                .current_rule_patterns
+                .iter()
+                .enumerate()
+                .map(|(idx, pattern)| (pattern.identifier().name, idx))
+                .collect();
+            patterns.sort_unstable();
+            patterns.dedup_by_key(|(name, _)| *name);
+            longer_sets.resize(patterns.len(), None);
+        } else {
+            longer_sets.fill(None);
+        }
+
+        // Visit wildcard sets from longest prefix to shortest. When visiting
+        // `s1`, `longer_sets[i]` holds the earliest set in the branch with a
+        // longer prefix that also matches `patterns[i]`, avoiding a linear
+        // rescan of all sets.
+        let mut unintended = Vec::new();
+
+        for (set_idx, s1) in wildcard_sets
+            .keys()
+            .enumerate()
+            .sorted_by_key(|(_, s1)| Reverse(s1.len()))
+        {
+            let start = patterns.partition_point(|(pat, _)| pat < s1);
+
+            for ((pat, pat_idx), longer_set) in patterns[start..]
+                .iter()
+                .zip(&mut longer_sets[start..])
+                .take_while(|((pat, _), _)| pat.starts_with(s1))
+            {
+                if !reported.contains(&(*pat_idx, *s1)) {
+                    let other_use =
+                        if let Some(span2) = explicit_patterns.get(pat) {
+                            Some((None, span2))
+                        } else {
+                            longer_set
+                                .and_then(|idx| wildcard_sets.get_index(idx))
+                                .map(|(s2, span2)| (Some(*s2), span2))
+                        };
+
+                    if let Some((s2, span2)) = other_use {
+                        unintended.push((set_idx, *pat_idx, *pat, s2, span2));
                     }
                 }
-                // Pattern set in `for ... of` loops.
-                ast::Expr::ForOf(for_of) => {
-                    if let ast::PatternSet::Set(set) = &for_of.pattern_set {
-                        for item in set {
-                            if item.wildcard {
-                                wildcard_pattern_sets
-                                    .push((item.identifier, item.span()));
-                            } else {
-                                explicit_patterns
-                                    .push((item.identifier, item.span()));
-                            }
-                        }
-                    }
-                }
-                _ => {}
+
+                *longer_set =
+                    Some(longer_set.map_or(set_idx, |idx| idx.min(set_idx)));
             }
         }
 
-        // For each wildcard pattern set in this branch, check if any rule
-        // pattern matching the set's prefix is also explicitly used in the
-        // same branch, or matched by a longer (more specific) prefix set.
-        for (s1, span1) in &wildcard_pattern_sets {
-            for pattern in ctx.current_rule_patterns.iter() {
-                let pat = pattern.identifier().name;
-                if pat.starts_with(s1) {
-                    let (label1, span1, label2, span2) =
-                        if let Some((_, span2)) = explicit_patterns
-                            .iter()
-                            .find(|(name, _)| *name == pat)
-                        {
-                            if span1.start() < span2.start() {
-                                (
-                                    format!("`{pat}` is included in `{s1}*`"),
-                                    span1,
-                                    format!("`{pat}` is also used here"),
-                                    span2,
-                                )
-                            } else {
-                                (
-                                    format!("`{pat}` is used here"),
-                                    span2,
-                                    format!(
-                                        "`{pat}` is also included in `{s1}*`"
-                                    ),
-                                    span1,
-                                )
-                            }
-                        } else if let Some((s2, span2)) = wildcard_pattern_sets
-                            .iter()
-                            .find(|(prefix2, _)| {
-                                prefix2.len() > s1.len()
-                                    && pat.starts_with(prefix2)
-                            })
-                        {
-                            if span1.start() < span2.start() {
-                                (
-                                    format!("`{pat}` is included in `{s1}*`"),
-                                    span1,
-                                    format!(
-                                        "`{pat}` is also included in `{s2}*`"
-                                    ),
-                                    span2,
-                                )
-                            } else {
-                                (
-                                    format!("`{pat}` is included in `{s2}*`"),
-                                    span2,
-                                    format!(
-                                        "`{pat}` is also included in `{s1}*`"
-                                    ),
-                                    span1,
-                                )
-                            }
-                        } else {
-                            continue;
-                        };
+        // Raise warnings in the order sets appear in the branch, and patterns
+        // appear in the rule.
+        unintended.sort_unstable_by_key(|(set_idx, pat_idx, ..)| {
+            (*set_idx, *pat_idx)
+        });
 
-                    if reported.insert((pat, span1.clone())) {
-                        ctx.warnings.add(|| {
-                            warnings::UnintendedPatternInSet::build(
-                                ctx.report_builder,
-                                pat.to_string(),
-                                format!("{s1}*"),
-                                label1,
-                                ctx.report_builder
-                                    .span_to_code_loc(span1.clone()),
-                                label2,
-                                ctx.report_builder
-                                    .span_to_code_loc(span2.clone()),
-                            )
-                        });
-                    }
-                }
+        for (set_idx, pat_idx, pat, other_prefix, other_span) in unintended {
+            let (set_prefix, set_span) =
+                wildcard_sets.get_index(set_idx).unwrap();
+
+            // Branches usually share expressions; report each
+            // (pattern, wildcard set) overlap only once.
+            if reported.insert((pat_idx, *set_prefix)) {
+                emit_unintended_pattern_warning(
+                    ctx,
+                    pat,
+                    set_prefix,
+                    set_span,
+                    other_prefix,
+                    other_span,
+                );
             }
         }
     }
+}
+
+/// Returns the explicit pattern set items of an `of` or `for ... of`
+/// expression, or an empty slice otherwise.
+fn pattern_set_items<'src>(
+    expr: &'src ast::Expr<'src>,
+) -> &'src [ast::PatternSetItem<'src>] {
+    match expr {
+        ast::Expr::Of(of) => match &of.items {
+            ast::OfItems::PatternSet(ast::PatternSet::Set(set)) => set,
+            _ => &[],
+        },
+        ast::Expr::ForOf(for_of) => match &for_of.pattern_set {
+            ast::PatternSet::Set(set) => set,
+            _ => &[],
+        },
+        _ => &[],
+    }
+}
+
+/// Populates `wildcard_sets` and `explicit_patterns` with the first occurrence
+/// of each item in `branch`.
+///
+/// Returns `false` (without populating `explicit_patterns`) if `branch` has no
+/// wildcard pattern sets.
+fn collect_branch_pattern_uses<'src>(
+    branch: &ConjunctiveBranch<'src>,
+    wildcard_sets: &mut IndexMap<&'src str, Span>,
+    explicit_patterns: &mut HashMap<&'src str, Span>,
+) -> bool {
+    wildcard_sets.clear();
+    for expr in branch.exprs() {
+        for item in pattern_set_items(expr) {
+            if item.wildcard {
+                wildcard_sets
+                    .entry(item.identifier)
+                    .or_insert_with(|| item.span());
+            }
+        }
+    }
+
+    if wildcard_sets.is_empty() {
+        return false;
+    }
+
+    explicit_patterns.clear();
+    for expr in branch.exprs() {
+        if let ast::Expr::PatternMatch(pm) = expr
+            && !pm.identifier.name.is_empty()
+        {
+            explicit_patterns
+                .entry(pm.identifier.name)
+                .or_insert_with(|| pm.identifier.span());
+        }
+        for item in pattern_set_items(expr) {
+            if !item.wildcard {
+                explicit_patterns
+                    .entry(item.identifier)
+                    .or_insert_with(|| item.span());
+            }
+        }
+    }
+
+    true
+}
+
+/// Emits an `unintended_pattern_in_set` warning with labels ordered by source
+/// position.
+fn emit_unintended_pattern_warning(
+    ctx: &mut CompileContext<'_, '_>,
+    pat: &str,
+    set_prefix: &str,
+    set_span: &Span,
+    other_prefix: Option<&str>,
+    other_span: &Span,
+) {
+    let (first_label, first_span, second_label, second_span) =
+        match (other_prefix, set_span.start() < other_span.start()) {
+            (None, true) => (
+                format!("`{pat}` is included in `{set_prefix}*`"),
+                set_span,
+                format!("`{pat}` is also used here"),
+                other_span,
+            ),
+            (None, false) => (
+                format!("`{pat}` is used here"),
+                other_span,
+                format!("`{pat}` is also included in `{set_prefix}*`"),
+                set_span,
+            ),
+            (Some(other), true) => (
+                format!("`{pat}` is included in `{set_prefix}*`"),
+                set_span,
+                format!("`{pat}` is also included in `{other}*`"),
+                other_span,
+            ),
+            (Some(other), false) => (
+                format!("`{pat}` is included in `{other}*`"),
+                other_span,
+                format!("`{pat}` is also included in `{set_prefix}*`"),
+                set_span,
+            ),
+        };
+
+    ctx.warnings.add(|| {
+        warnings::UnintendedPatternInSet::build(
+            ctx.report_builder,
+            pat.to_string(),
+            format!("{set_prefix}*"),
+            first_label,
+            ctx.report_builder.span_to_code_loc(first_span.clone()),
+            second_label,
+            ctx.report_builder.span_to_code_loc(second_span.clone()),
+        )
+    });
 }
 
 fn func_call_from_ast<'src>(

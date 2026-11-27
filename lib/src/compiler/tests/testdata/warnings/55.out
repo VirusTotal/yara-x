@@ -1,0 +1,47 @@
+warning[unintended_pattern_in_set]: pattern `$a1` may be unintendedly or redundantly included in pattern set `$a*`
+ --> line:6:13
+  |
+6 |     any of ($a*) and $a1 and all of ($a*, $a*)
+  |             ---      --- `$a1` is also used here
+  |             |
+  |             `$a1` is included in `$a*`
+warning[unintended_pattern_in_set]: pattern `$ab` may be unintendedly or redundantly included in pattern set `$a*`
+  --> line:15:13
+   |
+15 |     any of ($a*, $abc*, $ab*)
+   |             ---         ---- `$ab` is also included in `$ab*`
+   |             |
+   |             `$ab` is included in `$a*`
+warning[unintended_pattern_in_set]: pattern `$abc` may be unintendedly or redundantly included in pattern set `$a*`
+  --> line:15:13
+   |
+15 |     any of ($a*, $abc*, $ab*)
+   |             ---  ----- `$abc` is also included in `$abc*`
+   |             |
+   |             `$abc` is included in `$a*`
+warning[unintended_pattern_in_set]: pattern `$abc` may be unintendedly or redundantly included in pattern set `$ab*`
+  --> line:15:18
+   |
+15 |     any of ($a*, $abc*, $ab*)
+   |                  -----  ---- `$abc` is also included in `$ab*`
+   |                  |
+   |                  `$abc` is included in `$abc*`
+warning[unintended_pattern_in_set]: pattern `$b2` may be unintendedly or redundantly included in pattern set `$b*`
+  --> line:23:13
+   |
+23 |     $b1 and $b2 and any of ($b*)
+   |             ---             --- `$b2` is also included in `$b*`
+   |             |
+   |             `$b2` is used here
+warning[unintended_pattern_in_set]: pattern `$b1` may be unintendedly or redundantly included in pattern set `$b*`
+  --> line:23:5
+   |
+23 |     $b1 and $b2 and any of ($b*)
+   |     --- `$b1` is used here  --- `$b1` is also included in `$b*`
+warning[unintended_pattern_in_set]: pattern `$cd1` may be unintendedly or redundantly included in pattern set `$c*`
+  --> line:30:14
+   |
+30 |     (any of ($c*) and all of ($cd*)) or (any of ($c*) and all of ($cd*))
+   |              ---              ---- `$cd1` is also included in `$cd*`
+   |              |
+   |              `$cd1` is included in `$c*`

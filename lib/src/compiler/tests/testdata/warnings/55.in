@@ -1,0 +1,31 @@
+rule test_1 {
+  strings:
+    $a1 = "foo"
+    $a2 = "bar"
+  condition:
+    any of ($a*) and $a1 and all of ($a*, $a*)
+}
+
+rule test_2 {
+  strings:
+    $a = "foo"
+    $ab = "bar"
+    $abc = "baz"
+  condition:
+    any of ($a*, $abc*, $ab*)
+}
+
+rule test_3 {
+  strings:
+    $b2 = "foo"
+    $b1 = "bar"
+  condition:
+    $b1 and $b2 and any of ($b*)
+}
+
+rule test_4 {
+  strings:
+    $cd1 = "foo"
+  condition:
+    (any of ($c*) and all of ($cd*)) or (any of ($c*) and all of ($cd*))
+}
