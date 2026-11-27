@@ -5,7 +5,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use annotate_snippets::renderer::{AnsiColor, Color, DEFAULT_TERM_WIDTH};
-use annotate_snippets::{AnnotationKind, Group, Snippet, renderer};
+use annotate_snippets::{AnnotationKind, Group, Origin, Snippet, renderer};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
@@ -324,14 +324,38 @@ impl Display for Report {
             let (sliced_src, line_start, slice_start) =
                 get_source_slice(cache_entry, min_offset, max_offset);
 
-            // Construct snippet with the sliced source and explicitly align
-            // the starting line number.
-            let mut snippet = Snippet::source(sliced_src)
-                .line_start(line_start)
-                .path(cache_entry.origin.as_deref().unwrap_or("line"));
+            let path = cache_entry.origin.as_deref().unwrap_or("line");
+            let labels = || {
+                self.labels
+                    .iter()
+                    .filter(|l| l.1.source_id.unwrap() == source_id)
+            };
 
-            for (level, label_ref, label) in &self.labels {
-                if label_ref.source_id.unwrap() == source_id {
+            if is_snippet_too_large(sliced_src, self.max_width) {
+                // Skip rendering the source snippet in extreme cases (e.g.
+                // very long lines or huge slices) and report only each
+                // label's location and message.
+                for (level, label_ref, label) in labels() {
+                    let mut origin = Origin::path(path);
+                    if let Some((line, column)) = cache_entry
+                        .byte_offset_to_line_col(label_ref.span.start())
+                    {
+                        origin = origin.line(line).char_column(column);
+                    }
+                    group = group.element(origin);
+                    if !label.is_empty() {
+                        group = group
+                            .element(level.clone().message(label.as_str()));
+                    }
+                }
+            } else {
+                // Construct snippet with the sliced source and explicitly align
+                // the starting line number.
+                let mut snippet = Snippet::source(sliced_src)
+                    .line_start(line_start)
+                    .path(path);
+
+                for (level, label_ref, label) in labels() {
                     let annotation_kind = if matches!(level, &Level::ERROR) {
                         AnnotationKind::Primary
                     } else {
@@ -351,9 +375,9 @@ impl Display for Report {
                             .label(label),
                     );
                 }
-            }
 
-            group = group.element(snippet);
+                group = group.element(snippet);
+            }
         }
 
         for (level, text) in &self.footers {
@@ -394,6 +418,10 @@ impl Display for Report {
 
             let (sliced_src, line_start, slice_start) =
                 get_source_slice(cache_entry, min_offset, max_offset);
+
+            if is_snippet_too_large(sliced_src, self.max_width) {
+                continue;
+            }
 
             let mut snippet = Snippet::source(sliced_src)
                 .line_start(line_start)
@@ -451,6 +479,24 @@ fn get_source_slice(
         start_line_idx + 1,
         slice_start,
     )
+}
+
+/// Maximum byte size of a source slice rendered in a report snippet.
+const MAX_SNIPPET_BYTES: usize = 32 * 1024;
+
+/// Returns `true` if `src` is too wide or too large to render as a source
+/// snippet.
+///
+/// `annotate_snippets` disables horizontal cropping when labels are farther
+/// apart than `max_width`, and always renders lines containing patches in
+/// full. Skipping the source snippet in extreme cases prevents report text
+/// and rendering time from growing quadratically with line length or slice
+/// size.
+fn is_snippet_too_large(src: &str, max_width: usize) -> bool {
+    let max_line_len = max_width.saturating_mul(4);
+    src.len() > MAX_SNIPPET_BYTES
+        || (src.len() > max_line_len
+            && src.lines().any(|line| line.len() > max_line_len))
 }
 
 /// Represents a label in an error or warning report.
@@ -531,6 +577,7 @@ impl CodeCache {
 struct CodeCacheEntry {
     code: String,
     line_starts: Vec<usize>,
+    is_ascii: bool,
     origin: Option<String>,
 }
 
@@ -549,7 +596,11 @@ impl CodeCacheEntry {
 
         let line = self.line_starts.partition_point(|&x| x <= byte_offset);
         let line_start = self.line_starts[line - 1];
-        let col = self.code[line_start..byte_offset].chars().count() + 1;
+        let col = if self.is_ascii {
+            byte_offset - line_start + 1
+        } else {
+            self.code[line_start..byte_offset].chars().count() + 1
+        };
 
         Some((line, col))
     }
@@ -653,6 +704,7 @@ impl ReportBuilder {
             };
             let code = s.replace('\t', " ");
             let line_starts = compute_line_starts(&code);
+            let is_ascii = code.is_ascii();
             CodeCacheEntry {
                 // Replace tab characters with a single space. This doesn't
                 // affect code spans, because the number of characters remain
@@ -660,6 +712,7 @@ impl ReportBuilder {
                 // formatted when they are printed.
                 code,
                 line_starts,
+                is_ascii,
                 origin: src.origin.clone(),
             }
         });
@@ -739,6 +792,7 @@ mod tests {
         let entry = CodeCacheEntry {
             code: text.to_string(),
             line_starts,
+            is_ascii: text.is_ascii(),
             origin: None,
         };
         entry.byte_offset_to_line_col(offset)
@@ -787,6 +841,50 @@ mod tests {
         assert_eq!(helper(text, 8), None); // Position in the middle of '你'
         assert_eq!(helper(text, 10), Some((1, 9))); // Position of '好'
         assert_eq!(helper(text, 13), Some((1, 10))); // Position of '!'
+    }
+
+    #[test]
+    fn report_skips_extreme_snippets() {
+        use crate::SourceCode;
+        use crate::compiler::report::{Level, ReportBuilder};
+        use yara_x_parser::Span;
+
+        let filler = "x".repeat(10000);
+        let src = format!("rule ñ {{ {filler} }} rule a {{ {filler} }}");
+
+        let builder = ReportBuilder::new();
+        builder.register_source(&SourceCode::from(src.as_str()));
+
+        let first = builder.span_to_code_loc(Span(5..7));
+        let second = builder.span_to_code_loc(Span(10018..10019));
+
+        let mut report = builder.create_report(
+            Level::ERROR,
+            "E012",
+            "duplicate rule".to_string(),
+            vec![
+                (Level::ERROR, second.clone(), "duplicate".to_string()),
+                (Level::NOTE, first, "declared here".to_string()),
+            ],
+            vec![(Level::NOTE, Some("footer note".to_string()))],
+        );
+
+        report.patch(second, "b");
+
+        let text = report.to_string();
+
+        // Source and patch snippets are skipped on very long lines, while the
+        // title, exact file:line:column locations, label messages, and footers
+        // are preserved.
+        assert_eq!(
+            text,
+            "error[E012]: duplicate rule\n\
+             --> line:1:10018\n\
+             \x20= error: duplicate\n\
+             ::: line:1:6\n\
+             \x20= note: declared here\n\
+             \x20= note: footer note"
+        );
     }
 
     #[test]
