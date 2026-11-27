@@ -15,7 +15,6 @@ use rustc_hash::FxHashMap;
 use sha1::Sha1;
 use sha2::{Sha256, Sha384, Sha512};
 
-use x509_parser::certificate::X509Certificate;
 use x509_parser::der_parser::num_bigint::BigUint;
 use x509_parser::x509::{AlgorithmIdentifier, X509Name};
 
@@ -466,7 +465,8 @@ impl<'a> AuthenticodeParser<'a> {
                 None => continue,
             };
 
-            let mut countersignature = Self::pkcs9_countersignature(cs_si)?;
+            let mut countersignature =
+                Self::pkcs9_countersignature(cs_si, certificates.len())?;
 
             let tst =
                 match TstInfo::from_ber(sd.content_info.content.as_bytes()) {
@@ -520,7 +520,7 @@ impl<'a> AuthenticodeParser<'a> {
 
             if let Ok(cs_si) = value.try_into() {
                 let mut countersignature =
-                    Self::pkcs9_countersignature(&cs_si)?;
+                    Self::pkcs9_countersignature(&cs_si, certificates.len())?;
 
                 countersignature.verified = signature_digests
                     .verify(&cs_si.digest_algorithm, countersignature.digest)
@@ -539,6 +539,7 @@ impl<'a> AuthenticodeParser<'a> {
 
     fn pkcs9_countersignature(
         si: &SignerInfo<'a>,
+        num_certificates: usize,
     ) -> Result<AuthenticodeCountersign<'a>, ParseError> {
         let mut digest = None;
         let mut signing_time = None;
@@ -566,7 +567,9 @@ impl<'a> AuthenticodeParser<'a> {
         };
 
         Ok(AuthenticodeCountersign {
-            signer: si.serial_number.clone(),
+            issuer: si.issuer.clone(),
+            serial_number: si.serial_number.clone(),
+            num_certificates,
             digest_alg: oid_to_str(si.digest_algorithm.oid()),
             digest,
             signing_time,
@@ -576,7 +579,15 @@ impl<'a> AuthenticodeParser<'a> {
 }
 
 pub struct AuthenticodeCountersign<'a> {
-    signer: BigUint,
+    /// Issuer and serial number of the certificate that produced the
+    /// countersignature, as stated in its [`SignerInfo`].
+    issuer: X509Name<'a>,
+    serial_number: BigUint,
+    /// Number of certificates that were known when the countersignature was
+    /// verified. Certificates are only appended to the list, so the first
+    /// `num_certificates` items in [`AuthenticodeSignature::certificates`]
+    /// are exactly those that `verify_signer_info` had at its disposal.
+    num_certificates: usize,
     digest_alg: Cow<'static, str>,
     digest: &'a [u8],
     signing_time: Option<i64>,
@@ -630,9 +641,14 @@ impl<'a> AuthenticodeSignature<'a> {
 
     #[inline]
     pub fn chain(&self) -> impl Iterator<Item = &Certificate<'a>> {
-        CertificateChain::new(self.certificates(), |cert| {
-            cert.tbs_certificate.issuer.eq(self.issuer())
-        })
+        CertificateChain::new(
+            self.certificates(),
+            find_signing_cert(
+                self.certificates(),
+                self.issuer(),
+                &self.signer_info.serial_number,
+            ),
+        )
     }
 
     #[inline]
@@ -695,9 +711,15 @@ impl From<&AuthenticodeSignature<'_>> for protos::pe::Signature {
 
         for cs in value.countersignatures() {
             let mut pbcs = protos::pe::CounterSignature::from(cs);
-            pbcs.chain = CertificateChain::new(value.certificates(), |cert| {
-                cert.tbs_certificate.serial == cs.signer
-            })
+            // The chain is built with the certificates that were available
+            // when the countersignature was verified. Certificates added
+            // later were not taken into account for computing `verified`,
+            // so they must not appear in the chain either.
+            let certs = &value.certificates()[..cs.num_certificates];
+            pbcs.chain = CertificateChain::new(
+                certs,
+                find_signing_cert(certs, &cs.issuer, &cs.serial_number),
+            )
             .map(protos::pe::Certificate::from)
             .collect();
             sig.countersignatures.push(pbcs);
@@ -944,6 +966,36 @@ impl<'a> MessageDigestCache<'a> {
     }
 }
 
+/// Finds the certificate identified by the given issuer and serial number.
+///
+/// [`SignerInfo`] identifies the certificate that produced its signature with
+/// the name of its issuer and its serial number. Serial numbers are unique
+/// only among the certificates issued by the same CA, so the certificate that
+/// matches both is preferred. However, names are compared byte by byte,
+/// without the normalization described in RFC 5280, and a signature that
+/// encodes the name of the issuer in a different way than the certificate
+/// would be left without a signer. For that reason, when no certificate
+/// matches both, the result is the first one with that serial number.
+///
+/// The verification of a `SignerInfo` and the certificate chain reported for
+/// it must both rely on this function for finding the signer, and pass the
+/// same list of certificates. Otherwise, a signature could be verified with
+/// one certificate and attributed to a different one.
+fn find_signing_cert<'a, 'b>(
+    certs: &'b [Certificate<'a>],
+    issuer: &X509Name<'_>,
+    serial_number: &BigUint,
+) -> Option<&'b Certificate<'a>> {
+    let has_serial = |cert: &&Certificate<'_>| {
+        cert.x509.tbs_certificate.serial.eq(serial_number)
+    };
+    certs
+        .iter()
+        .filter(has_serial)
+        .find(|cert| cert.x509.tbs_certificate.issuer.eq(issuer))
+        .or_else(|| certs.iter().find(has_serial))
+}
+
 /// Verifies that the [`SignerInfo`] struct is valid.
 ///
 /// `SignerInfo` contains information about the signer of some data stored in
@@ -953,7 +1005,7 @@ impl<'a> MessageDigestCache<'a> {
 /// hashing the attributes first, and then signing the hash. The resulting
 /// signature is added `SignerInfo` itself. This signature can be verified by
 /// using the public key included in the certificate identified by
-/// [`SignerInfo::serial_number`].
+/// [`SignerInfo::issuer`] and [`SignerInfo::serial_number`].
 ///
 /// This function makes sure that:
 ///
@@ -978,17 +1030,14 @@ fn verify_signer_info<'a>(
         };
 
     // Search for the certificate that signed the digest.
-    let signing_cert = match certs
-        .iter()
-        .map(|cert| &cert.x509)
-        .find(|cert| cert.tbs_certificate.serial.eq(&si.serial_number))
-    {
-        Some(cert) => cert,
-        None => return false,
-    };
+    let signing_cert =
+        match find_signing_cert(certs, &si.issuer, &si.serial_number) {
+            Some(cert) => cert,
+            None => return false,
+        };
 
     // Obtain the public key included in the certificate.
-    let spki = &signing_cert.tbs_certificate.subject_pki;
+    let spki = &signing_cert.x509.tbs_certificate.subject_pki;
     let key = match PublicKey::try_from(spki) {
         Ok(key) => key,
         Err(_) => return false,
@@ -1075,9 +1124,7 @@ fn verify_signer_info<'a>(
     // the data that this SignerInfo refers to. This chain goes from the
     // signing certificate up in the chain of truth until a self-signed
     // certificate or some "external" certificate.
-    let cert_chain = CertificateChain::new(certs, |cert| {
-        cert.tbs_certificate.serial.eq(&si.serial_number)
-    });
+    let cert_chain = CertificateChain::new(certs, Some(signing_cert));
 
     // Make sure that whole certificate chain is valid.
     cert_chain.verify(cert_cache)
@@ -1114,16 +1161,15 @@ struct CertificateChain<'a, 'b> {
 impl<'a, 'b> CertificateChain<'a, 'b> {
     /// Creates a new certificate chain.
     ///
-    /// This function receives a pool of certificates in the `certs` arguments,
-    /// and a `predicate` that identifies the initial certificate in the chain.
-    /// The initial certificate will be the first certificate in the pool that
-    /// matches the predicate.
-    pub fn new<P>(certs: &'b [Certificate<'a>], predicate: P) -> Self
-    where
-        P: Fn(&X509Certificate<'_>) -> bool,
-    {
-        let next = certs.iter().find(|cert| predicate(&cert.x509));
-        Self { certs, next, seen: HashSet::new() }
+    /// This function receives a pool of certificates in the `certs` argument,
+    /// and the initial certificate in the chain, which is the one returned by
+    /// [`find_signing_cert`] for that same pool. If `first` is `None` the
+    /// chain is empty.
+    pub fn new(
+        certs: &'b [Certificate<'a>],
+        first: Option<&'b Certificate<'a>>,
+    ) -> Self {
+        Self { certs, next: first, seen: HashSet::new() }
     }
 
     /// Returns `true` if the certificate chain is valid.
@@ -1320,11 +1366,7 @@ mod tests {
         assert_eq!(certs.len(), 2);
 
         let mut cache = CertVerificationCache::default();
-        let leaf_chain = || {
-            CertificateChain::new(&certs, |c| {
-                c.tbs_certificate.serial == BigUint::from(1u8)
-            })
-        };
+        let leaf_chain = || CertificateChain::new(&certs, Some(&certs[0]));
 
         // First walk fails (dummy SPKI) and caches the (leaf, root) link.
         assert!(!leaf_chain().verify(&mut cache));
@@ -1337,5 +1379,39 @@ mod tests {
         cache.insert(key, true);
         assert!(leaf_chain().verify(&mut cache));
         assert_eq!(cache.len(), 1);
+
+        // `find_signing_cert` prefers an exact (issuer, serial) match over an
+        // earlier certificate that shares only the serial or only the issuer,
+        // and falls back to the first matching serial if no issuer matches.
+        let pool_raw = [
+            dummy_cert(1, b"attacker", b"attacker_ca"),
+            dummy_cert(2, b"decoy_same_issuer", b"real_ca"),
+            dummy_cert(1, b"victim", b"real_ca"),
+        ]
+        .concat();
+        let (rem, pool) = SignedData::parse_certificates(&pool_raw);
+        assert!(rem.is_empty());
+        assert_eq!(pool.len(), 3);
+
+        let real_ca = &pool[2].x509.tbs_certificate.issuer;
+        let attacker_ca = &pool[0].x509.tbs_certificate.issuer;
+
+        // Exact (issuer, serial) picks `victim` even though `attacker` has the
+        // same serial earlier and `decoy_same_issuer` has the same issuer earlier.
+        let found = find_signing_cert(&pool, real_ca, &BigUint::from(1u8));
+        assert_eq!(found.unwrap().x509.as_raw(), pool[2].x509.as_raw());
+
+        // Different serial with same issuer picks `decoy_same_issuer`.
+        let found = find_signing_cert(&pool, real_ca, &BigUint::from(2u8));
+        assert_eq!(found.unwrap().x509.as_raw(), pool[1].x509.as_raw());
+
+        // No exact (issuer, serial) match falls back to first cert with serial.
+        let found = find_signing_cert(&pool, attacker_ca, &BigUint::from(2u8));
+        assert_eq!(found.unwrap().x509.as_raw(), pool[1].x509.as_raw());
+
+        // Unknown serial returns None even if issuer exists.
+        assert!(
+            find_signing_cert(&pool, real_ca, &BigUint::from(99u8)).is_none()
+        );
     }
 }
