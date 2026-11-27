@@ -7,6 +7,7 @@ the parser. Each token is represented by a variant of the [`Token`] type.
 
 use std::str::from_utf8;
 
+use bstr::decode_utf8;
 use logos::Logos;
 
 use crate::Span;
@@ -215,38 +216,39 @@ impl Tokenizer<'_> {
         let end = lexer.source().len();
         let unexpected = lexer.source().get(start..end).unwrap();
 
-        // Make sure that `unexpected` contains a valid UTF-8 string, or take
-        // the first few bytes that are valid and ignore the rest. It's safe to
-        // call .unwrap() because there must be at least one UTF-8 chunk, either
-        // valid or invalid.
-        let chunk = unexpected.utf8_chunks().next().unwrap();
+        // Decode the first character in `unexpected`. If it is not a valid
+        // UTF-8 character, return a token that covers the first invalid byte.
+        let (first, mut len) = decode_utf8(unexpected);
 
-        if chunk.valid().is_empty() {
+        let Some(first) = first else {
             return Token::INVALID_UTF8(
                 Span(start as u32..(start + 1) as u32)
                     .offset(self.lexer_starting_pos as isize),
             );
-        }
-
-        // `unexpected` is the valid UTF-8 prefix.
-        let unexpected = chunk.valid();
-
-        // Truncate `unexpected` at the first whitespace if any. If `unexpected`
-        // starts with a character considered whitespace by `char::is_whitespace`
-        // that wasn't matched as `Whitespace` or a newline (e.g. `\u{0085}`,
-        // `\u{2028}`, `\u{2029}`), `split` yields an empty string; consume that
-        // first full UTF-8 character so the span never splits a code point.
-        let unexpected = match unexpected.split(char::is_whitespace).next() {
-            Some(s) if !s.is_empty() => s,
-            _ => {
-                let c = unexpected.chars().next().unwrap();
-                &unexpected[..c.len_utf8()]
-            }
         };
 
-        // If `unexpected` is larger than the current token, bump the lexer to the
-        // end of `unexpected`.
-        lexer.bump(unexpected.len().saturating_sub(lexer.span().len()));
+        // The unexpected token extends up to the first whitespace or invalid
+        // UTF-8 sequence, if any. Characters are decoded one at a time, so the
+        // work done here is proportional to the length of the token. Validating
+        // the whole remaining source code instead would make the tokenizer
+        // quadratic on inputs with a large number of unexpected tokens.
+        //
+        // If `unexpected` starts with a character considered whitespace by
+        // `char::is_whitespace` that wasn't matched as `Whitespace` or a
+        // newline (e.g. `\u{0085}`, `\u{2028}`, `\u{2029}`), the token is that
+        // first full UTF-8 character, so the span never splits a code point.
+        if !first.is_whitespace() {
+            while let (Some(c), n) = decode_utf8(&unexpected[len..]) {
+                if c.is_whitespace() {
+                    break;
+                }
+                len += n;
+            }
+        }
+
+        // If the unexpected token is larger than the current token, bump the
+        // lexer to the end of the unexpected token.
+        lexer.bump(len.saturating_sub(lexer.span().len()));
 
         Token::UNKNOWN(
             Span::from(lexer.span()).offset(self.lexer_starting_pos as isize),

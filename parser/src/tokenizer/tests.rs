@@ -422,6 +422,36 @@ fn errors() {
     assert_eq!(lexer.next_token(), Some(Token::IDENT(Span(0..3))));
     assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(3..4))));
     assert_eq!(lexer.next_token(), Some(Token::INVALID_UTF8(Span(4..5))));
+
+    // The unexpected token ends at the first whitespace, even if that
+    // whitespace is not recognized by the tokenizer (e.g. vertical tab).
+    let mut lexer = super::Tokenizer::new(b";;\x0B;\x0C; ;\xFF");
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(0..2))));
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(2..3))));
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(3..4))));
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(4..5))));
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(5..6))));
+    assert_eq!(lexer.next_token(), Some(Token::WHITESPACE(Span(6..7))));
+    assert_eq!(lexer.next_token(), Some(Token::UNKNOWN(Span(7..8))));
+    assert_eq!(lexer.next_token(), Some(Token::INVALID_UTF8(Span(8..9))));
+    assert_eq!(lexer.next_token(), None);
+}
+
+#[test]
+fn many_unexpected_tokens() {
+    // Each vertical tab is an unexpected token. The time spent in each of
+    // them must not depend on the length of the source code that follows,
+    // otherwise tokenizing this source takes quadratic time.
+    let source = vec![b'\x0B'; 1_000_000];
+    let mut lexer = super::Tokenizer::new(source.as_slice());
+    let mut num_tokens = 0;
+
+    while let Some(token) = lexer.next_token() {
+        assert_eq!(token, Token::UNKNOWN(Span(num_tokens..num_tokens + 1)));
+        num_tokens += 1;
+    }
+
+    assert_eq!(num_tokens as usize, source.len());
 }
 
 #[test]
