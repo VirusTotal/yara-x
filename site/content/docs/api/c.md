@@ -699,6 +699,20 @@ enum YRX_RESULT yrx_scanner_scan(
 
 Scans a memory buffer.
 
+### yrx_scanner_scan_file
+
+```c
+enum YRX_RESULT yrx_scanner_scan_file(
+    struct YRX_SCANNER *scanner,
+    const char *path);
+```
+
+Scans a file.
+
+This function is similar to [yrx_scanner_scan](#yrx_scanner_scan), but it
+receives a file path instead of the data to be scanned. It can't be used with a
+scanner that is in block scanning mode.
+
 ### yrx_scanner_scan_block
 
 ```c
