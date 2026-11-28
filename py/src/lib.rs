@@ -1422,6 +1422,11 @@ impl Rules {
     }
 
     /// Deserializes rules from a file-like object.
+    ///
+    /// As long as the content was produced by `serialize_into` you are safe.
+    /// But you should never attempt to deserialize content that was produced
+    /// or could have been manipulated by a third party. This implies a
+    /// security risk and your program may panic while scanning.
     #[staticmethod]
     fn deserialize_from(file: Py<PyAny>) -> PyResult<Py<Rules>> {
         let rules = yrx::Rules::deserialize_from(PyReader::new(file)?)

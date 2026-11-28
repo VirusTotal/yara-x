@@ -127,6 +127,11 @@ pub unsafe extern "C" fn yrx_rules_serialize(
 
 /// Deserializes the rules from a sequence of bytes produced by
 /// [`yrx_rules_serialize`].
+///
+/// As long as the bytes were produced by [`yrx_rules_serialize`] you are safe.
+/// But you should never attempt to deserialize bytes that were produced or
+/// could have been manipulated by a third party. This implies a security risk
+/// and your program may panic during scanning.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn yrx_rules_deserialize(
     data: *const u8,
