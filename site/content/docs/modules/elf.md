@@ -306,10 +306,11 @@ These are the possible values of the `osabi` field.
 | OSABI_HPUX       | 1     | Hewlett-Packard HP-UX           |
 | OSABI_NETBSD     | 2     | NetBSD                          |
 | OSABI_LINUX      | 3     | GNU Linux                       |
+| OSABI_GNU_HURD   | 4     | GNU Hurd                        |
 | OSABI_SOLARIS    | 6     | Sun Solaris                     |
 | OSABI_AIX        | 7     | AIX                             |
 | OSABI_IRIX       | 8     | IRIX                            |
-| OSABI_FREEBSD    | 9     | FreeBSD                         |
+| OSABI_FREE_BSD   | 9     | FreeBSD                         |
 | OSABI_TRU64      | 10    | Compaq TRU64 UNIX               |
 | OSABI_MODESTO    | 11    | Novell Modesto                  |
 | OSABI_OPENBSD    | 12    | Open BSD                        |
