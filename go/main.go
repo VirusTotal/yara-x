@@ -106,6 +106,11 @@ func Compile(src string, opts ...CompileOption) (*Rules, error) {
 
 // ReadFrom reads compiled rules from a reader.
 //
+// As long as the rules were written by [Rules.WriteTo] you are safe. But you
+// should never attempt to read rules that were produced or could have been
+// manipulated by a third party. This implies a security risk and your program
+// may panic while scanning.
+//
 // The counterpart is [Rules.WriteTo].
 func ReadFrom(r io.Reader) (*Rules, error) {
 	data, err := io.ReadAll(r)

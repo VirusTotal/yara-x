@@ -468,6 +468,13 @@ impl Rules {
     }
 
     /// Deserializes the rules from a `reader`.
+    ///
+    /// # Safety
+    ///
+    /// The same requirement as [`Rules::deserialize`] applies: the bytes must
+    /// have been produced by [`Rules::serialize`], and never read from a
+    /// source that a third party could have produced or manipulated. Doing so
+    /// implies a security risk and your program may panic during scanning.
     pub fn deserialize_from<R>(
         mut reader: R,
     ) -> Result<Self, SerializationError>
